@@ -19,13 +19,25 @@ web (Next.js)  ──►  gateway (Node/TS)  ──►  picker (Go)  ──►  
 
 You need a free TMDB key: <https://www.themoviedb.org/settings/api> (the v3 API key or the v4 read access token both work).
 
-### Option A: Docker for the backend
+### Option A: everything in Docker
 
 ```bash
 cp .env.example .env          # add TMDB_API_KEY
-docker compose up --build     # postgres, redis, picker :8081, gateway :4000
+docker compose up --build     # web :3000, gateway :4000, picker :8081, postgres, redis, mailpit :8025
+```
+
+Open http://localhost:3000. The web image is a Next.js standalone build (non-root, with a health check).
+
+`NEXT_PUBLIC_API_URL` is baked into the browser bundle when the web image is **built**, so it must be the gateway URL as the browser sees it. It defaults to `http://localhost:4000`; for another host set `PUBLIC_API_URL` in `.env` and rebuild (`docker compose build web`). If the site isn't on `http://localhost:3000`, also set `CORS_ORIGIN` to its URL and add it to your Google client's Authorized JavaScript origins. `WEB_PORT` changes the host port.
+
+### Option A2: Docker backend, local frontend (hot reload)
+
+```bash
+docker compose up -d gateway  # starts gateway and everything it needs, not the web container
 cd web && npm install && npm run dev   # http://localhost:3000
 ```
+
+Stop the `web` container first (`docker compose stop web`) if it's running, since both use port 3000.
 
 ### Option B: no Docker
 

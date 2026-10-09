@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Self-contained server build (.next/standalone) for the Docker image.
+  output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
   images: {

@@ -1,5 +1,8 @@
-# Backend stack: Postgres, Redis, the Go picker and the Node gateway.
-# Run the Next.js frontend separately (`cd web && npm run dev`) or on Vercel.
+# Full stack: the Next.js web app, Node gateway, Go picker, Postgres, Redis
+# and Mailpit (local email inbox). `docker compose up --build` runs it all;
+# the app is on http://localhost:3000. For frontend development with hot
+# reload, run `npm run dev` in web/ instead and skip the web service
+# (`docker compose up -d gateway`), since both use port 3000.
 services:
   postgres:
     image: postgres:17-alpine
@@ -55,6 +58,16 @@ services:
       postgres: { condition: service_healthy }
       picker: { condition: service_started }
       mailpit: { condition: service_started }
+
+  web:
+    build:
+      context: ./web
+      args:
+        # Baked into the browser bundle: the gateway URL as the *browser* sees it.
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+    ports: ["${WEB_PORT:-3000}:3000"]
+    depends_on:
+      gateway: { condition: service_started }
 
 volumes:
   pgdata:

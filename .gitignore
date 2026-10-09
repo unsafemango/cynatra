@@ -5,3 +5,6 @@ dist/
 .next/
 /picker/picker
 .DS_Store
+
+# Claude Code local settings (e.g. browser preview config)
+.claude/
