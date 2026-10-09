@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLayoutEffect, useState } from "react";
+import { LogoMark } from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -44,6 +45,7 @@ export default function LoginPage() {
   if (ready && user && !busy) {
     return (
       <div className="max-w-sm mx-auto pt-8 text-center">
+        <LogoMark size={56} className="block mx-auto mb-5" />
         <h1 className="text-2xl font-semibold tracking-tight">You&apos;re logged in</h1>
         <p className="mt-1 text-sm text-muted">as {user.email}</p>
         <div className="mt-6 flex justify-center gap-2">
@@ -63,6 +65,7 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-sm mx-auto pt-8">
+      <LogoMark size={48} className="block mb-5" />
       <h1 className="text-2xl font-semibold tracking-tight">{mode === "login" ? "Welcome back" : "Create an account"}</h1>
       <p className="mt-1 text-sm text-muted">Save a watchlist, keep your pick history, and skip what you&apos;ve seen.</p>
 
