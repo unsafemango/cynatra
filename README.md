@@ -115,8 +115,12 @@ cd web && npm run lint && npm run build
 
 ## Deploying
 
+**Free, on Kubernetes:** see [DEPLOY.md](DEPLOY.md). It covers the whole stack on an Oracle Cloud Always Free server with k3s, HTTPS and your own domain.
+
+Without Kubernetes:
+
 - **web** → Vercel. Set `NEXT_PUBLIC_API_URL` to the gateway URL.
-- **picker**, **gateway** → Railway, Render or Fly.io using their Dockerfiles. Set `CORS_ORIGIN` on the gateway to your web URL and use a real `JWT_SECRET`.
+- **picker**, **gateway** → Render, Koyeb, Railway or Fly.io using their Dockerfiles. Set `CORS_ORIGIN` on the gateway to your web URL and use a real `JWT_SECRET`.
 
 ## Next up
 
