@@ -1,0 +1,45 @@
+package picker
+
+import "testing"
+
+func TestBuildQueryMovieGenresAreORed(t *testing.T) {
+	q, ok := buildQuery(attempt{"movie", "movie"}, Request{Genres: []string{"comedy", "horror"}, MinRating: 7})
+	if !ok {
+		t.Fatal("expected query")
+	}
+	if got := q.Get("with_genres"); got != "35|27" {
+		t.Errorf("with_genres = %q", got)
+	}
+	if got := q.Get("without_genres"); got != "16" {
+		t.Errorf("without_genres = %q", got)
+	}
+	if got := q.Get("vote_average.gte"); got != "7.0" {
+		t.Errorf("vote_average.gte = %q", got)
+	}
+}
+
+func TestBuildQueryUnsupportedTVGenre(t *testing.T) {
+	if _, ok := buildQuery(attempt{"series", "tv"}, Request{Genres: []string{"horror"}}); ok {
+		t.Error("horror has no TV genre; expected no query")
+	}
+}
+
+func TestBuildQueryAnimationRequiresAnimationGenre(t *testing.T) {
+	q, _ := buildQuery(attempt{"animation", "tv"}, Request{Genres: []string{"scifi"}, YearFrom: 2000})
+	if got := q.Get("with_genres"); got != "16,10765" {
+		t.Errorf("with_genres = %q", got)
+	}
+	if got := q.Get("first_air_date.gte"); got != "2000-01-01" {
+		t.Errorf("first_air_date.gte = %q", got)
+	}
+}
+
+func TestNormalize(t *testing.T) {
+	r := Request{Type: "Surprise"}
+	if err := Normalize(&r); err != nil || r.Type != "any" || r.Region != "US" {
+		t.Errorf("got %+v, %v", r, err)
+	}
+	if err := Normalize(&Request{Type: "podcast"}); err == nil {
+		t.Error("expected error for unknown type")
+	}
+}

@@ -1,0 +1,44 @@
+# Backend stack: Postgres, Redis, the Go picker and the Node gateway.
+# Run the Next.js frontend separately (`cd web && npm run dev`) or on Vercel.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: cynatra
+      POSTGRES_PASSWORD: cynatra
+      POSTGRES_DB: cynatra
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cynatra"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  picker:
+    build: ./picker
+    environment:
+      TMDB_API_KEY: ${TMDB_API_KEY:?Set TMDB_API_KEY in .env}
+      REDIS_URL: redis://redis:6379/0
+      PORT: "8081"
+    ports: ["8081:8081"]
+    depends_on: [redis]
+
+  gateway:
+    build: ./gateway
+    environment:
+      PORT: "4000"
+      PICKER_URL: http://picker:8081
+      DATABASE_URL: postgres://cynatra:cynatra@postgres:5432/cynatra
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports: ["4000:4000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      picker: { condition: service_started }
+
+volumes:
+  pgdata:
