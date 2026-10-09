@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { formatRuntime, toSlug, type Provider, type Title } from "@/lib/api";
+
+const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
 
 const KIND_LABEL = { movie: "Movie", series: "Series", animation: "Animation" } as const;
 
@@ -17,6 +19,20 @@ export function ResultCard({
   animate?: boolean;
 }) {
   const [showTrailer, setShowTrailer] = useState(false);
+  const trailerRef = useRef<HTMLIFrameElement>(null);
+
+  // Next.js keeps pages you navigate away from mounted but hidden, and a hidden
+  // iframe keeps playing. Pause the trailer when this card is hidden; YouTube
+  // keeps the position, so it can be resumed on coming back.
+  useLayoutEffect(() => {
+    const frame = trailerRef.current;
+    return () => {
+      frame?.contentWindow?.postMessage(
+        JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+        YOUTUBE_ORIGIN,
+      );
+    };
+  }, [showTrailer]);
   const runtime = formatRuntime(t);
   const providers = t.whereToWatch;
 
@@ -105,7 +121,9 @@ export function ResultCard({
         <div className="relative px-5 sm:px-7 pb-7">
           <div className="aspect-video rounded-xl overflow-hidden border border-border">
             <iframe
-              src={`https://www.youtube-nocookie.com/embed/${t.trailerKey}?autoplay=1`}
+              ref={trailerRef}
+              // enablejsapi lets us send the pause command above.
+              src={`${YOUTUBE_ORIGIN}/embed/${t.trailerKey}?autoplay=1&enablejsapi=1&playsinline=1`}
               title={`${t.title} trailer`}
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
