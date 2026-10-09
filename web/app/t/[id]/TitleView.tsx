@@ -28,8 +28,9 @@ export function TitleView() {
       {!title && !error && <div className="h-[360px] rounded-2xl bg-surface border border-border animate-pulse" />}
       {title && <ResultCard title={title} animate={false} />}
       <p className="text-center">
-        <Link href="/" className="text-muted hover:text-foreground">
-          🎲 Spin for your own pick →
+        {/* Spins right away with the visitor's saved filters, skipping this title. */}
+        <Link href={`/?spin=1&skip=${id}`} className="text-muted hover:text-foreground">
+          Not feeling it? <span className="text-foreground">🎲 Spin for something else →</span>
         </Link>
       </p>
     </div>

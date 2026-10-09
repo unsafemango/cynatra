@@ -51,6 +51,7 @@ cd web && npm install && npm run dev
 | GET/PATCH | `/api/auth/me` | ✓ | PATCH `{region}` sets the where-to-watch country |
 | GET/POST | `/api/me/watchlist` | ✓ | POST a title object |
 | DELETE | `/api/me/watchlist/:titleId` | ✓ | |
+| POST | `/api/me/watchlist/pick` | ✓ | Random unseen title from the watchlist. Body: `{excludeIds[]}`. 404 with `code: "empty"` or `"exhausted"`. |
 | GET/POST | `/api/me/watching` | ✓ | POST a title object; also removes it from the watchlist |
 | DELETE | `/api/me/watching/:titleId` | ✓ | |
 | GET/DELETE | `/api/me/history` | ✓ | |

@@ -125,7 +125,7 @@ export default function LibraryPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" className="flex gap-1 p-1 rounded-xl bg-surface border border-border">
           {TABS.map((t) => (
             <button
@@ -141,6 +141,14 @@ export default function LibraryPage() {
             </button>
           ))}
         </div>
+        {tab === "watchlist" && items && items.some((i) => !i.seen) && (
+          <Link
+            href="/?from=watchlist"
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:brightness-110"
+          >
+            🎲 Pick one for me
+          </Link>
+        )}
         {tab === "history" && items && items.length > 0 && (
           <button onClick={clearHistory} className="text-sm text-muted hover:text-foreground">
             Clear history

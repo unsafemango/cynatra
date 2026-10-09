@@ -37,6 +37,41 @@ libraryRouter.post("/watchlist", async (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+// Random unseen title from the watchlist. `excludeIds` are titles already shown
+// this session, so rerolls cycle through the list before repeating.
+libraryRouter.post("/watchlist/pick", async (req, res) => {
+  const parsed = z.object({ excludeIds: z.array(titleId).max(1000).default([]) }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const userId = req.user!.id;
+  const unseen = `FROM watchlist w
+     WHERE w.user_id = $1
+       AND NOT EXISTS (SELECT 1 FROM seen s WHERE s.user_id = w.user_id AND s.title_id = w.title_id)`;
+
+  const { rows } = await pool!.query<{ title_id: string; title: unknown }>(
+    `SELECT w.title_id, w.title ${unseen} AND NOT (w.title_id = ANY($2::text[])) ORDER BY random() LIMIT 1`,
+    [userId, parsed.data.excludeIds],
+  );
+  if (rows[0]) {
+    await pool!.query("INSERT INTO history (user_id, title_id, title) VALUES ($1, $2, $3)", [
+      userId,
+      rows[0].title_id,
+      rows[0].title,
+    ]);
+    res.json(rows[0].title);
+    return;
+  }
+
+  const { rows: count } = await pool!.query<{ n: number }>(`SELECT count(*)::int AS n ${unseen}`, [userId]);
+  if (count[0].n === 0) {
+    res.status(404).json({ code: "empty", error: "Your watchlist has nothing unseen. Save a few picks first." });
+  } else {
+    res.status(404).json({ code: "exhausted", error: "You've been through your whole watchlist." });
+  }
+});
+
 libraryRouter.delete("/watchlist/:titleId", async (req, res) => {
   await pool!.query("DELETE FROM watchlist WHERE user_id = $1 AND title_id = $2", [
     req.user!.id,
