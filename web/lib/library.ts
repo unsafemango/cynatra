@@ -22,9 +22,13 @@ function writeLocalSeen(ids: string[]) {
   }
 }
 
-export async function markSeen(id: string, loggedIn: boolean, seen = true) {
+/** Pass the title when marking seen so it shows up on the Seen tab. */
+export async function markSeen(id: string, loggedIn: boolean, seen = true, title?: Title) {
   if (loggedIn) {
-    await api(`/api/me/seen/${encodeURIComponent(id)}`, { method: seen ? "PUT" : "DELETE" });
+    await api(`/api/me/seen/${encodeURIComponent(id)}`, {
+      method: seen ? "PUT" : "DELETE",
+      body: seen && title ? JSON.stringify(title) : undefined,
+    });
     return;
   }
   const ids = localSeen().filter((x) => x !== id);

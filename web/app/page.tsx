@@ -84,7 +84,7 @@ export default function SpinPage() {
 
   const onSeen = async () => {
     if (!result) return;
-    await markSeen(result.id, Boolean(user)).catch(() => {});
+    await markSeen(result.id, Boolean(user), true, result).catch(() => {});
     spin();
   };
 

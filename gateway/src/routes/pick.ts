@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { config } from "../config.js";
 import { pool } from "../db/index.js";
+import { callPicker } from "../picker.js";
 
 export const pickRouter = Router();
 
@@ -20,15 +20,6 @@ const pickRequest = z.object({
   excludeIds: z.array(titleId).max(500).default([]),
   excludeSeen: z.boolean().default(true),
 });
-
-async function callPicker(path: string, init?: RequestInit) {
-  const res = await fetch(config.pickerUrl + path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    signal: AbortSignal.timeout(25_000),
-  });
-  return { status: res.status, body: await res.json() };
-}
 
 pickRouter.get("/genres", async (_req, res) => {
   const { status, body } = await callPicker("/genres");

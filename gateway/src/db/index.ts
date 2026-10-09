@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS seen (
   seen_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, title_id)
 );
+-- Title snapshot for the Seen tab. Nullable: older marks stored only the ID
+-- and are filled in on read.
+ALTER TABLE seen ADD COLUMN IF NOT EXISTS title jsonb;
+CREATE INDEX IF NOT EXISTS seen_user_seen_at ON seen (user_id, seen_at DESC);
 `;
 
 export async function migrate() {

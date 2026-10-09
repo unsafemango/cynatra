@@ -52,7 +52,8 @@ cd web && npm install && npm run dev
 | GET/POST | `/api/me/watchlist` | ✓ | POST a title object |
 | DELETE | `/api/me/watchlist/:titleId` | ✓ | |
 | GET/DELETE | `/api/me/history` | ✓ | |
-| PUT/DELETE | `/api/me/seen/:titleId` | ✓ | |
+| GET | `/api/me/seen` | ✓ | Titles marked as seen, newest first |
+| PUT/DELETE | `/api/me/seen/:titleId` | ✓ | PUT body: the title object (optional, shown on the Seen tab) |
 
 Title IDs look like `movie:155` or `tv:1399`.
 
