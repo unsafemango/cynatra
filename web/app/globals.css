@@ -41,6 +41,18 @@
   }
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Fades the left and right edges of a horizontal scroller to hint there's more. */
+@utility fade-x {
+  mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
+}
+
 body {
   background:
     radial-gradient(1200px 600px at 50% -200px, #ff5a5f22, transparent 70%),

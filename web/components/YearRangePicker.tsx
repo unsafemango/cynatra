@@ -205,20 +205,29 @@ function RangeTrack({ from, to, max, onChange }: Props) {
 }
 
 /** Large year readout you can click and type into; commits on Enter or blur. */
-function YearInput({
+export function YearInput({
   label,
   value,
   min,
   max,
   onCommit,
+  placeholder,
 }: {
   label: string;
-  value: number;
+  value: number | undefined;
   min: number;
   max: number;
   onCommit: (y: number) => void;
+  placeholder?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  // If the year changes from outside (slider, grid, arrows) while this box has
+  // focus, drop the half-typed draft so the box shows the real value.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDraft(null);
+  }
 
   const commit = () => {
     if (draft === null) return;
@@ -234,9 +243,10 @@ function YearInput({
       inputMode="numeric"
       maxLength={4}
       aria-label={label}
-      value={draft ?? String(value)}
+      placeholder={placeholder}
+      value={draft ?? (value === undefined ? "" : String(value))}
       onFocus={(e) => {
-        setDraft(String(value));
+        setDraft(value === undefined ? "" : String(value));
         e.target.select();
       }}
       onChange={(e) => setDraft(e.target.value.replace(/\D/g, ""))}
@@ -249,12 +259,14 @@ function YearInput({
         }
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
           e.preventDefault();
-          const next = Math.min(max, Math.max(min, value + (e.key === "ArrowUp" ? 1 : -1)));
+          // With nothing chosen yet, arrows start from the newest year.
+          const base = value ?? max + (e.key === "ArrowUp" ? -1 : 1);
+          const next = Math.min(max, Math.max(min, base + (e.key === "ArrowUp" ? 1 : -1)));
           setDraft(String(next));
           onCommit(next);
         }
       }}
-      className="w-[4.5ch] bg-transparent text-2xl sm:text-3xl font-semibold tabular-nums tracking-tight rounded-md
+      className="w-[4.5ch] bg-transparent placeholder:text-muted/50 text-2xl sm:text-3xl font-semibold tabular-nums tracking-tight rounded-md
         border-b-2 border-dashed border-border hover:border-muted focus:border-accent focus:outline-none
         transition-colors"
     />
