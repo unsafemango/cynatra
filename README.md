@@ -44,16 +44,18 @@ cd web && npm install && npm run dev
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| POST | `/api/pick` | optional | Body: `{type, genres[], minRating, yearFrom?, yearTo?, maxRuntime?, language?, region?, excludeIds[], excludeSeen?}`. Logged-in picks skip seen titles and are saved to history. |
+| POST | `/api/pick` | optional | Body: `{type, genres[], minRating, yearFrom?, yearTo?, maxRuntime?, language?, region?, excludeIds[], excludeSeen?}`. Logged-in picks skip seen and in-progress titles and are saved to history. |
 | GET | `/api/genres` | – | Genre slugs and labels |
 | GET | `/api/title/:media/:id` | – | One title (for share links) |
 | POST | `/api/auth/register`, `/api/auth/login` | – | `{email, password}` → `{token, user}` |
 | GET/PATCH | `/api/auth/me` | ✓ | PATCH `{region}` sets the where-to-watch country |
 | GET/POST | `/api/me/watchlist` | ✓ | POST a title object |
 | DELETE | `/api/me/watchlist/:titleId` | ✓ | |
+| GET/POST | `/api/me/watching` | ✓ | POST a title object; also removes it from the watchlist |
+| DELETE | `/api/me/watching/:titleId` | ✓ | |
 | GET/DELETE | `/api/me/history` | ✓ | |
 | GET | `/api/me/seen` | ✓ | Titles marked as seen, newest first |
-| PUT/DELETE | `/api/me/seen/:titleId` | ✓ | PUT body: the title object (optional, shown on the Seen tab) |
+| PUT/DELETE | `/api/me/seen/:titleId` | ✓ | PUT body: the title object (optional, shown on the Seen tab). PUT also removes it from Watching. |
 
 Title IDs look like `movie:155` or `tv:1399`.
 

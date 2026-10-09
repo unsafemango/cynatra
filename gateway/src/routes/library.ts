@@ -45,6 +45,51 @@ libraryRouter.delete("/watchlist/:titleId", async (req, res) => {
   res.json({ ok: true });
 });
 
+libraryRouter.get("/watching", async (req, res) => {
+  const { rows } = await pool!.query(
+    `SELECT title, started_at AS "startedAt", false AS seen
+       FROM watching
+      WHERE user_id = $1
+      ORDER BY started_at DESC`,
+    [req.user!.id],
+  );
+  res.json({ items: rows });
+});
+
+// Starting a title moves it off the watchlist.
+libraryRouter.post("/watching", async (req, res) => {
+  const parsed = titleBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid title" });
+    return;
+  }
+  const client = await pool!.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO watching (user_id, title_id, title) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, title_id) DO NOTHING`,
+      [req.user!.id, parsed.data.id, parsed.data],
+    );
+    await client.query("DELETE FROM watchlist WHERE user_id = $1 AND title_id = $2", [req.user!.id, parsed.data.id]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+  res.status(201).json({ ok: true });
+});
+
+libraryRouter.delete("/watching/:titleId", async (req, res) => {
+  await pool!.query("DELETE FROM watching WHERE user_id = $1 AND title_id = $2", [
+    req.user!.id,
+    req.params.titleId,
+  ]);
+  res.json({ ok: true });
+});
+
 libraryRouter.get("/history", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const { rows } = await pool!.query(
@@ -124,6 +169,8 @@ libraryRouter.put("/seen/:titleId", async (req, res) => {
      ON CONFLICT (user_id, title_id) DO UPDATE SET title = COALESCE(EXCLUDED.title, seen.title)`,
     [req.user!.id, req.params.titleId, title],
   );
+  // Seen means finished, so it's no longer in progress.
+  await pool!.query("DELETE FROM watching WHERE user_id = $1 AND title_id = $2", [req.user!.id, req.params.titleId]);
   res.json({ ok: true });
 });
 

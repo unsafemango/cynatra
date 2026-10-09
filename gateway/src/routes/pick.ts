@@ -49,8 +49,9 @@ pickRouter.post("/pick", async (req, res) => {
 
   if (user && pool) {
     if (excludeSeen) {
+      // Skip titles already seen or currently being watched.
       const { rows } = await pool.query<{ title_id: string }>(
-        "SELECT title_id FROM seen WHERE user_id = $1",
+        "SELECT title_id FROM seen WHERE user_id = $1 UNION SELECT title_id FROM watching WHERE user_id = $1",
         [user.id],
       );
       rows.forEach((r) => exclude.add(r.title_id));

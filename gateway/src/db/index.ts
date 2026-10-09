@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS seen (
 -- and are filled in on read.
 ALTER TABLE seen ADD COLUMN IF NOT EXISTS title jsonb;
 CREATE INDEX IF NOT EXISTS seen_user_seen_at ON seen (user_id, seen_at DESC);
+
+-- Started but not finished. Marking a title seen removes it from here.
+CREATE TABLE IF NOT EXISTS watching (
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title_id   text NOT NULL,
+  title      jsonb NOT NULL,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, title_id)
+);
 `;
 
 export async function migrate() {

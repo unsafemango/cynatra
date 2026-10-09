@@ -5,23 +5,34 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { markSeen, removeFromWatchlist } from "@/lib/library";
+import { markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
 
-type Item = { title: Title; seen: boolean; addedAt?: string; pickedAt?: string; seenAt?: string; id?: number };
-type Tab = "watchlist" | "history" | "seen";
+type Item = {
+  title: Title;
+  seen: boolean;
+  addedAt?: string;
+  pickedAt?: string;
+  seenAt?: string;
+  startedAt?: string;
+  id?: number;
+};
+type Tab = "watchlist" | "watching" | "seen" | "history";
 
 const TABS: { id: Tab; label: string; empty: string }[] = [
   { id: "watchlist", label: "Watchlist", empty: "Nothing saved yet." },
-  { id: "history", label: "History", empty: "No picks yet." },
+  { id: "watching", label: "Watching", empty: "Nothing in progress. Start something from your watchlist or a spin." },
   { id: "seen", label: "Seen", empty: "Nothing marked as seen yet." },
+  { id: "history", label: "History", empty: "No picks yet." },
 ];
 
 const dateLabel = (item: Item) => {
   const [prefix, iso] = item.seenAt
     ? ["Seen", item.seenAt]
-    : item.pickedAt
-      ? ["Picked", item.pickedAt]
-      : ["Added", item.addedAt];
+    : item.startedAt
+      ? ["Started", item.startedAt]
+      : item.pickedAt
+        ? ["Picked", item.pickedAt]
+        : ["Added", item.addedAt];
   return iso ? `${prefix} ${new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : null;
 };
 
@@ -30,6 +41,14 @@ export default function LibraryPage() {
   const [tab, setTab] = useState<Tab>("watchlist");
   const [items, setItems] = useState<Item[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Short confirmation after an item moves between tabs.
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 3000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   useEffect(() => {
     if (!user) return;
@@ -47,6 +66,7 @@ export default function LibraryPage() {
     setTab(t);
     setItems(null);
     setError(null);
+    setNotice(null);
   };
 
   if (ready && !user) {
@@ -55,7 +75,7 @@ export default function LibraryPage() {
         <Link href="/login" className="text-foreground underline underline-offset-4">
           Log in
         </Link>{" "}
-        to see your watchlist, history and seen titles.
+        to see your watchlist, what you&apos;re watching, and what you&apos;ve seen.
       </p>
     );
   }
@@ -71,9 +91,28 @@ export default function LibraryPage() {
     });
   };
 
+  const dropRow = (item: Item) => setItems((cur) => cur?.filter((i) => i.title.id !== item.title.id) ?? null);
+
   const remove = async (item: Item) => {
     await removeFromWatchlist(item.title.id);
-    setItems((cur) => cur?.filter((i) => i.title.id !== item.title.id) ?? null);
+    dropRow(item);
+  };
+
+  const start = async (item: Item) => {
+    await startWatching(item.title);
+    if (tab === "watchlist") dropRow(item); // it moved to Watching
+    setNotice(`Moved “${item.title.title}” to Watching.`);
+  };
+
+  const finish = async (item: Item) => {
+    await markSeen(item.title.id, true, true, item.title);
+    dropRow(item);
+    setNotice(`Nice! “${item.title.title}” is now in Seen.`);
+  };
+
+  const stop = async (item: Item) => {
+    await stopWatching(item.title.id);
+    dropRow(item);
   };
 
   const clearHistory = async () => {
@@ -94,7 +133,7 @@ export default function LibraryPage() {
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => switchTab(t.id)}
-              className={`px-4 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-sm transition-colors ${
                 tab === t.id ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"
               }`}
             >
@@ -110,6 +149,11 @@ export default function LibraryPage() {
       </div>
 
       <div className="mt-6">
+        {notice && (
+          <p role="status" className="mb-4 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30 text-sm">
+            {notice}
+          </p>
+        )}
         {error && <p className="text-accent">{error}</p>}
         {!items && !error && <ListSkeleton />}
         {items?.length === 0 && (
@@ -164,26 +208,44 @@ export default function LibraryPage() {
                     {dateLabel(item) && <p className="text-[11px] text-muted/80 mt-1.5">{dateLabel(item)}</p>}
                   </div>
 
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => toggleSeen(item)}
-                      title={item.seen ? "Unmark as seen" : undefined}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
-                        item.seen
-                          ? "border-accent text-accent hover:bg-accent/10"
-                          : "border-border text-muted hover:text-foreground hover:border-muted"
-                      }`}
-                    >
-                      {item.seen ? "✓ Seen" : "Mark seen"}
-                    </button>
-                    {tab === "watchlist" && (
-                      <button
-                        onClick={() => remove(item)}
-                        className="px-3 py-1.5 rounded-lg text-xs border border-border text-muted hover:text-foreground hover:border-muted transition-colors"
-                        aria-label={`Remove ${item.title.title}`}
-                      >
-                        Remove
-                      </button>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    {tab === "watching" ? (
+                      <>
+                        <button onClick={() => finish(item)} className={`${btn} ${primaryBtn}`}>
+                          ✓ Finished
+                        </button>
+                        <button
+                          onClick={() => stop(item)}
+                          className={`${btn} ${quietBtn}`}
+                          aria-label={`Stop watching ${item.title.title}`}
+                        >
+                          Stop
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {tab === "watchlist" && (
+                          <button onClick={() => start(item)} className={`${btn} ${quietBtn}`}>
+                            ▶ Start
+                          </button>
+                        )}
+                        <button
+                          onClick={() => toggleSeen(item)}
+                          title={item.seen ? "Unmark as seen" : undefined}
+                          className={`${btn} ${item.seen ? seenBtn : quietBtn}`}
+                        >
+                          {item.seen ? "✓ Seen" : "Mark seen"}
+                        </button>
+                        {tab === "watchlist" && (
+                          <button
+                            onClick={() => remove(item)}
+                            className={`${btn} ${quietBtn}`}
+                            aria-label={`Remove ${item.title.title}`}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -195,6 +257,11 @@ export default function LibraryPage() {
     </div>
   );
 }
+
+const btn = "px-3 py-1.5 rounded-lg text-xs border transition-colors";
+const quietBtn = "border-border text-muted hover:text-foreground hover:border-muted";
+const seenBtn = "border-accent text-accent hover:bg-accent/10";
+const primaryBtn = "border-accent bg-accent text-white hover:brightness-110";
 
 function ListSkeleton() {
   return (

@@ -39,6 +39,15 @@ export function addToWatchlist(t: Title) {
   return api("/api/me/watchlist", { method: "POST", body: JSON.stringify(t) });
 }
 
+/** Moves a title to Watching (and off the watchlist). */
+export function startWatching(t: Title) {
+  return api("/api/me/watching", { method: "POST", body: JSON.stringify(t) });
+}
+
+export function stopWatching(id: string) {
+  return api(`/api/me/watching/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function removeFromWatchlist(id: string) {
   return api(`/api/me/watchlist/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

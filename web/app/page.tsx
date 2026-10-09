@@ -7,7 +7,7 @@ import { ResultCard } from "@/components/ResultCard";
 import { SpinLoader } from "@/components/SpinLoader";
 import { api, toSlug, type Filters, type Genre, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { addToWatchlist, localSeen, markSeen } from "@/lib/library";
+import { addToWatchlist, localSeen, markSeen, startWatching } from "@/lib/library";
 
 const FILTERS_KEY = "cynatra:filters";
 const DEFAULT_FILTERS: Filters = { type: "any", genres: [], minRating: 6.5 };
@@ -26,6 +26,7 @@ export default function SpinPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [watching, setWatching] = useState(false);
   // Titles shown this session, so rerolls don't repeat.
   const shown = useRef<string[]>([]);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -63,6 +64,7 @@ export default function SpinPage() {
     setError(null);
     setNotice(null);
     setSaved(false);
+    setWatching(false);
     resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     const started = Date.now();
     try {
@@ -93,6 +95,17 @@ export default function SpinPage() {
     try {
       await addToWatchlist(result);
       setSaved(true);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Couldn't save.");
+    }
+  };
+
+  const onWatch = async () => {
+    if (!result) return;
+    try {
+      await startWatching(result);
+      setWatching(true);
+      setSaved(false); // starting moves it off the watchlist
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Couldn't save.");
     }
@@ -151,9 +164,14 @@ export default function SpinPage() {
                   ↻ Reroll
                 </button>
                 {user ? (
-                  <button onClick={onSave} disabled={saved} className={secondaryBtn}>
-                    {saved ? "✓ On watchlist" : "+ Watchlist"}
-                  </button>
+                  <>
+                    <button onClick={onSave} disabled={saved || watching} className={secondaryBtn}>
+                      {saved ? "✓ On watchlist" : "+ Watchlist"}
+                    </button>
+                    <button onClick={onWatch} disabled={watching} className={secondaryBtn}>
+                      {watching ? "✓ Watching" : "▶ Start watching"}
+                    </button>
+                  </>
                 ) : (
                   <Link href="/login" className={secondaryBtn}>
                     + Watchlist
