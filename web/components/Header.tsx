@@ -30,9 +30,17 @@ export function Header() {
             </>
           )}
           {ready && !user && (
-            <Link href="/login" className="ml-1 px-2 sm:px-3 py-1.5 rounded-md bg-surface-2 hover:bg-border">
-              Log in
-            </Link>
+            <>
+              <Link href="/login" className="px-2 sm:px-3 py-1.5 rounded-md text-muted hover:text-foreground">
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="ml-1 px-3 py-1.5 rounded-md bg-accent text-white font-medium hover:brightness-110"
+              >
+                Sign up
+              </Link>
+            </>
           )}
         </nav>
       </div>

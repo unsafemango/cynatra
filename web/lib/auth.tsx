@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, getToken, setToken, type User } from "./api";
 
@@ -15,6 +16,7 @@ type AuthState = {
   resendCode: (email: string) => Promise<number>;
   /** Signs in with the ID token from "Continue with Google". */
   loginWithGoogle: (credential: string) => Promise<void>;
+  /** Signs out and shows the "You've logged out" page. */
   logout: () => void;
   setUser: (u: User) => void;
 };
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const restore = getToken()
@@ -64,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout: () => {
       setToken(null);
       setUser(null);
+      router.push("/logged-out");
     },
     setUser,
   };
