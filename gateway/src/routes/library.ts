@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, requireDb } from "../auth.js";
 import { pool } from "../db/index.js";
@@ -11,16 +11,41 @@ libraryRouter.use(requireDb, requireAuth);
 const titleId = z.string().regex(/^(movie|tv):\d+$/);
 const titleBody = z.object({ id: titleId, title: z.string() }).passthrough();
 
+const PAGE_SIZE = 10;
+
+/**
+ * Runs a list query one page at a time. `listSql` gets the page size and
+ * offset as its last two parameters. Responds with {items, total, page, pageSize}.
+ */
+async function sendPage(
+  req: Request,
+  res: Response,
+  countSql: string,
+  listSql: string,
+  params: unknown[],
+) {
+  const page = Math.max(1, Math.floor(Number(req.query.page)) || 1);
+  const pageSize = Math.min(50, Math.max(1, Math.floor(Number(req.query.pageSize)) || PAGE_SIZE));
+  const [{ rows: count }, { rows: items }] = await Promise.all([
+    pool!.query<{ n: number }>(countSql, params),
+    pool!.query(listSql, [...params, pageSize, (page - 1) * pageSize]),
+  ]);
+  res.json({ items, total: count[0].n, page, pageSize });
+}
+
 libraryRouter.get("/watchlist", async (req, res) => {
-  const { rows } = await pool!.query(
+  await sendPage(
+    req,
+    res,
+    "SELECT count(*)::int AS n FROM watchlist WHERE user_id = $1",
     `SELECT w.title, w.added_at AS "addedAt", (s.title_id IS NOT NULL) AS seen
        FROM watchlist w
        LEFT JOIN seen s ON s.user_id = w.user_id AND s.title_id = w.title_id
       WHERE w.user_id = $1
-      ORDER BY w.added_at DESC`,
+      ORDER BY w.added_at DESC, w.title_id
+      LIMIT $2 OFFSET $3`,
     [req.user!.id],
   );
-  res.json({ items: rows });
 });
 
 libraryRouter.post("/watchlist", async (req, res) => {
@@ -81,14 +106,17 @@ libraryRouter.delete("/watchlist/:titleId", async (req, res) => {
 });
 
 libraryRouter.get("/watching", async (req, res) => {
-  const { rows } = await pool!.query(
+  await sendPage(
+    req,
+    res,
+    "SELECT count(*)::int AS n FROM watching WHERE user_id = $1",
     `SELECT title, started_at AS "startedAt", false AS seen
        FROM watching
       WHERE user_id = $1
-      ORDER BY started_at DESC`,
+      ORDER BY started_at DESC, title_id
+      LIMIT $2 OFFSET $3`,
     [req.user!.id],
   );
-  res.json({ items: rows });
 });
 
 // Starting a title moves it off the watchlist.
@@ -126,17 +154,18 @@ libraryRouter.delete("/watching/:titleId", async (req, res) => {
 });
 
 libraryRouter.get("/history", async (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 50, 200);
-  const { rows } = await pool!.query(
+  await sendPage(
+    req,
+    res,
+    "SELECT count(*)::int AS n FROM history WHERE user_id = $1",
     `SELECT h.id, h.title, h.picked_at AS "pickedAt", (s.title_id IS NOT NULL) AS seen
        FROM history h
        LEFT JOIN seen s ON s.user_id = h.user_id AND s.title_id = h.title_id
       WHERE h.user_id = $1
-      ORDER BY h.picked_at DESC
-      LIMIT $2`,
-    [req.user!.id, limit],
+      ORDER BY h.picked_at DESC, h.id DESC
+      LIMIT $2 OFFSET $3`,
+    [req.user!.id],
   );
-  res.json({ items: rows });
 });
 
 libraryRouter.delete("/history", async (req, res) => {
@@ -180,15 +209,17 @@ libraryRouter.get("/seen", async (req, res) => {
     );
   }
 
-  const { rows } = await pool!.query(
+  await sendPage(
+    req,
+    res,
+    "SELECT count(*)::int AS n FROM seen WHERE user_id = $1 AND title IS NOT NULL",
     `SELECT s.title, s.seen_at AS "seenAt", true AS seen
        FROM seen s
       WHERE s.user_id = $1 AND s.title IS NOT NULL
-      ORDER BY s.seen_at DESC
-      LIMIT 200`,
+      ORDER BY s.seen_at DESC, s.title_id
+      LIMIT $2 OFFSET $3`,
     [userId],
   );
-  res.json({ items: rows });
 });
 
 libraryRouter.put("/seen/:titleId", async (req, res) => {

@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Pagination } from "@/components/Pagination";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
@@ -17,6 +18,7 @@ type Item = {
   id?: number;
 };
 type Tab = "watchlist" | "watching" | "seen" | "history";
+type PageData = { items: Item[]; total: number; page: number; pageSize: number };
 
 const TABS: { id: Tab; label: string; empty: string }[] = [
   { id: "watchlist", label: "Watchlist", empty: "Nothing saved yet." },
@@ -39,10 +41,40 @@ const dateLabel = (item: Item) => {
 export default function LibraryPage() {
   const { user, ready } = useAuth();
   const [tab, setTab] = useState<Tab>("watchlist");
-  const [items, setItems] = useState<Item[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<PageData | null>(null);
+  // Refetches the current page (after a row leaves it) without showing the skeleton.
+  const [reload, setReload] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Short confirmation after an item moves between tabs.
   const [notice, setNotice] = useState<string | null>(null);
+  const [urlRead, setUrlRead] = useState(false);
+  const listTop = useRef<HTMLDivElement>(null);
+  const items = data?.items ?? null;
+
+  // Restore tab/page from the URL (e.g. coming Back from a title page).
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const t = params.get("tab") as Tab | null;
+    const p = Number(params.get("page"));
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (t && TABS.some((x) => x.id === t)) setTab(t);
+    if (p > 1) setPage(Math.floor(p));
+    setUrlRead(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  // Keep the URL in sync so Back and refresh land on the same page.
+  useEffect(() => {
+    if (!urlRead) return;
+    const qs = new URLSearchParams();
+    if (tab !== "watchlist") qs.set("tab", tab);
+    if (page > 1) qs.set("page", String(page));
+    const query = qs.toString();
+    const next = `/library${query ? `?${query}` : ""}`;
+    if (location.pathname + location.search !== next) history.replaceState(null, "", next);
+  }, [tab, page, urlRead]);
 
   useEffect(() => {
     if (!notice) return;
@@ -51,22 +83,39 @@ export default function LibraryPage() {
   }, [notice]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !urlRead) return;
     let cancelled = false;
-    api<{ items: Item[] }>(`/api/me/${tab}`)
-      .then((r) => !cancelled && setItems(r.items))
-      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Couldn't load."));
+    api<PageData>(`/api/me/${tab}?page=${page}`)
+      .then((r) => {
+        if (cancelled) return;
+        // Past the end (e.g. the last row of the last page was removed): go back a page.
+        if (r.items.length === 0 && r.total > 0 && page > 1) {
+          setPage(Math.ceil(r.total / r.pageSize));
+          return;
+        }
+        setData(r);
+        setError(null);
+      })
+      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Couldn't load."))
+      .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, [user, tab]);
+  }, [user, tab, page, reload, urlRead]);
 
   const switchTab = (t: Tab) => {
     if (t === tab) return;
     setTab(t);
-    setItems(null);
+    setPage(1);
+    setData(null);
     setError(null);
     setNotice(null);
+  };
+
+  const goToPage = (p: number) => {
+    setPage(p);
+    setLoading(true);
+    listTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   if (ready && !user) {
@@ -80,18 +129,21 @@ export default function LibraryPage() {
     );
   }
 
+  /** Removes a row right away, then refetches so the next item moves up into this page. */
+  const dropRow = (item: Item) => {
+    setData((cur) =>
+      cur && { ...cur, total: cur.total - 1, items: cur.items.filter((i) => i.title.id !== item.title.id) },
+    );
+    setReload((n) => n + 1);
+  };
+
   const toggleSeen = async (item: Item) => {
     const seen = !item.seen;
     await markSeen(item.title.id, true, seen, item.title);
-    setItems((cur) => {
-      if (!cur) return cur;
-      // On the Seen tab, unmarking removes the row.
-      if (tab === "seen" && !seen) return cur.filter((i) => i.title.id !== item.title.id);
-      return cur.map((i) => (i.title.id === item.title.id ? { ...i, seen } : i));
-    });
+    // On the Seen tab, unmarking removes the row.
+    if (tab === "seen" && !seen) return dropRow(item);
+    setData((cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, seen } : i)) });
   };
-
-  const dropRow = (item: Item) => setItems((cur) => cur?.filter((i) => i.title.id !== item.title.id) ?? null);
 
   const remove = async (item: Item) => {
     await removeFromWatchlist(item.title.id);
@@ -118,7 +170,8 @@ export default function LibraryPage() {
   const clearHistory = async () => {
     if (!confirm("Clear your whole pick history?")) return;
     await api("/api/me/history", { method: "DELETE" });
-    setItems([]);
+    setPage(1);
+    setData((cur) => cur && { ...cur, items: [], total: 0, page: 1 });
   };
 
   const current = TABS.find((t) => t.id === tab)!;
@@ -141,7 +194,7 @@ export default function LibraryPage() {
             </button>
           ))}
         </div>
-        {tab === "watchlist" && items && items.some((i) => !i.seen) && (
+        {tab === "watchlist" && data && data.total > 0 && (
           <Link
             href="/?from=watchlist"
             className="shrink-0 px-3 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:brightness-110"
@@ -156,7 +209,7 @@ export default function LibraryPage() {
         )}
       </div>
 
-      <div className="mt-6">
+      <div ref={listTop} className="mt-6 scroll-mt-20">
         {notice && (
           <p role="status" className="mb-4 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30 text-sm">
             {notice}
@@ -172,7 +225,7 @@ export default function LibraryPage() {
             </Link>
           </p>
         )}
-        <ul className="grid gap-3">
+        <ul className={`grid gap-3 transition-opacity ${loading ? "opacity-50" : ""}`} aria-busy={loading}>
           {items?.map((item) => {
             const href = `/t/${toSlug(item.title.id)}`;
             return (
@@ -261,6 +314,15 @@ export default function LibraryPage() {
             );
           })}
         </ul>
+        {data && (
+          <Pagination
+            page={page}
+            pageSize={data.pageSize}
+            total={data.total}
+            onChange={goToPage}
+            disabled={loading}
+          />
+        )}
       </div>
     </div>
   );

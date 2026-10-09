@@ -58,6 +58,8 @@ cd web && npm install && npm run dev
 | GET | `/api/me/seen` | ✓ | Titles marked as seen, newest first |
 | PUT/DELETE | `/api/me/seen/:titleId` | ✓ | PUT body: the title object (optional, shown on the Seen tab). PUT also removes it from Watching. |
 
+List endpoints (`GET /api/me/watchlist`, `/watching`, `/seen`, `/history`) are paginated: `?page=1&pageSize=10` (max 50), returning `{items, total, page, pageSize}`.
+
 Title IDs look like `movie:155` or `tv:1399`.
 
 ## How a pick works
