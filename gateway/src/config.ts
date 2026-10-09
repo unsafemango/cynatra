@@ -6,6 +6,19 @@ export const config = {
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(","),
   // OAuth client ID for "Sign in with Google". Empty: the Google button is hidden.
   googleClientId: process.env.GOOGLE_CLIENT_ID || undefined,
+  // Email delivery for sign-up codes. Either separate settings (preferred for
+  // providers like Brevo, whose login contains "@")...
+  smtp: process.env.SMTP_HOST
+    ? {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        user: process.env.SMTP_USER || "",
+        pass: process.env.SMTP_PASS || "",
+      }
+    : undefined,
+  // ...or one URL, e.g. smtp://mailpit:1025 locally. Neither: codes are logged (dev only).
+  smtpUrl: process.env.SMTP_URL || undefined,
+  emailFrom: process.env.EMAIL_FROM || "Cynatra <no-reply@cynatra.local>",
 };
 
 if (process.env.NODE_ENV === "production" && config.jwtSecret === "dev-only-secret") {

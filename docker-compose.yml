@@ -14,6 +14,12 @@ services:
       interval: 3s
       retries: 20
 
+  # Local email catcher: sign-up codes land in the inbox at http://localhost:8025
+  # instead of being delivered. Point SMTP_URL at a real provider in production.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["8025:8025", "1025:1025"]
+
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
@@ -36,10 +42,19 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Real email: set SMTP_HOST/PORT/USER/PASS in .env (they take priority).
+      # Otherwise codes go to the local Mailpit inbox at http://localhost:8025.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+      EMAIL_FROM: ${EMAIL_FROM:-Cynatra <no-reply@cynatra.local>}
     ports: ["4000:4000"]
     depends_on:
       postgres: { condition: service_healthy }
       picker: { condition: service_started }
+      mailpit: { condition: service_started }
 
 volumes:
   pgdata:

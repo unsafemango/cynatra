@@ -40,6 +40,14 @@ cd gateway && npm install && cp .env.example .env && npm run dev
 cd web && npm install && npm run dev
 ```
 
+## Email verification
+
+Email sign-ups are confirmed with a 6-digit code before the account is created. Codes expire after 10 minutes, allow 5 tries, and can be resent once a minute.
+
+- **Local (Docker):** emails go to Mailpit; open **http://localhost:8025** to read them. Nothing is delivered for real.
+- **Gateway without Docker:** leave `SMTP_URL` empty and the code is printed in the gateway's terminal.
+- **Real email (Brevo):** in Brevo, verify a sender address, then under *Settings → SMTP & API → SMTP* generate an SMTP key. In `.env` set `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_USER` (the SMTP login), `SMTP_PASS` (the SMTP key) and `EMAIL_FROM="Cynatra <your-verified-sender>"`, then `docker compose up -d gateway`. The gateway logs `email: ready via smtp-relay.brevo.com:587` when the credentials work. Any other SMTP provider works the same way.
+
 ## Sign in with Google (optional)
 
 1. In [Google Cloud Console](https://console.cloud.google.com), create a project, then set up the OAuth consent screen (External).
@@ -55,7 +63,10 @@ The "Continue with Google" button appears on the login page once the gateway has
 | POST | `/api/pick` | optional | Body: `{type, genres[], minRating, yearFrom?, yearTo?, maxRuntime?, language?, region?, excludeIds[], excludeSeen?}`. Logged-in picks skip seen and in-progress titles and are saved to history. |
 | GET | `/api/genres` | – | Genre slugs and labels |
 | GET | `/api/title/:media/:id` | – | One title (for share links) |
-| POST | `/api/auth/register`, `/api/auth/login` | – | `{email, password}` → `{token, user}` |
+| POST | `/api/auth/register` | – | `{email, password}`: emails a 6-digit code; no account yet (202) |
+| POST | `/api/auth/register/verify` | – | `{email, code}` → `{token, user}`: creates the account and signs in |
+| POST | `/api/auth/register/resend` | – | `{email}`: new code (once a minute) |
+| POST | `/api/auth/login` | – | `{email, password}` → `{token, user}` |
 | POST | `/api/auth/google` | – | `{credential}` (Google ID token) → `{token, user}`. Creates the account, or links Google to an existing one with the same verified email. |
 | GET | `/api/auth/config` | – | `{accounts, googleClientId}`: which sign-in options to show |
 | GET/PATCH | `/api/auth/me` | ✓ | PATCH `{region}` sets the where-to-watch country |

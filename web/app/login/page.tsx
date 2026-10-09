@@ -5,17 +5,20 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { LogoMark } from "@/components/Logo";
+import { VerifyEmailStep } from "@/components/VerifyEmailStep";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { user, ready, login, register, loginWithGoogle, logout } = useAuth();
+  const { user, ready, login, register, verifyEmail, resendCode, loginWithGoogle, logout } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set after "Sign up": the address waiting for its emailed code.
+  const [pending, setPending] = useState<{ email: string; resendAfterSeconds: number } | null>(null);
   // Set by the gateway; null hides the Google button.
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
@@ -41,7 +44,13 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await (mode === "login" ? login : register)(email, password);
+      if (mode === "register") {
+        const { resendAfterSeconds } = await register(email, password);
+        setPassword("");
+        setPending({ email: email.trim().toLowerCase(), resendAfterSeconds });
+        return;
+      }
+      await login(email, password);
       setEmail("");
       setPassword("");
       router.push("/");
@@ -84,6 +93,32 @@ export default function LoginPage() {
             Log out
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (pending) {
+    return (
+      <div className="max-w-sm mx-auto pt-8">
+        <LogoMark size={48} className="block mb-5" />
+        <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
+        <p className="mt-1 text-sm text-muted">One last step to create your account.</p>
+        <VerifyEmailStep
+          key={pending.email}
+          email={pending.email}
+          resendAfterSeconds={pending.resendAfterSeconds}
+          onVerify={async (code) => {
+            await verifyEmail(pending.email, code);
+            setPending(null);
+            setEmail("");
+            router.push("/");
+          }}
+          onResend={() => resendCode(pending.email)}
+          onChangeEmail={() => {
+            setPending(null);
+            setError(null);
+          }}
+        />
       </div>
     );
   }

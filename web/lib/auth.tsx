@@ -7,7 +7,12 @@ type AuthState = {
   user: User | null;
   ready: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  /** Starts email sign-up: emails a code. No account until verifyEmail succeeds. */
+  register: (email: string, password: string) => Promise<{ resendAfterSeconds: number }>;
+  /** Confirms the emailed code: creates the account and signs in. */
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  /** Sends a new code; resolves with the seconds until another can be sent. */
+  resendCode: (email: string) => Promise<number>;
   /** Signs in with the ID token from "Continue with Google". */
   loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
@@ -42,7 +47,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     ready,
     login: (email, password) => authenticate("/api/auth/login", { email, password }),
-    register: (email, password) => authenticate("/api/auth/register", { email, password }),
+    register: (email, password) =>
+      api<{ resendAfterSeconds: number }>("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      }),
+    verifyEmail: (email, code) => authenticate("/api/auth/register/verify", { email, code }),
+    resendCode: async (email) =>
+      (
+        await api<{ resendAfterSeconds: number }>("/api/auth/register/resend", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        })
+      ).resendAfterSeconds,
     loginWithGoogle: (credential) => authenticate("/api/auth/google", { credential }),
     logout: () => {
       setToken(null);

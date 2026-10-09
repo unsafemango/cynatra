@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { optionalAuth } from "./auth.js";
 import { config } from "./config.js";
 import { migrate, pool } from "./db/index.js";
+import { checkMailer } from "./mailer.js";
 import { authRouter } from "./routes/auth.js";
 import { libraryRouter } from "./routes/library.js";
 import { pickRouter } from "./routes/pick.js";
@@ -28,6 +29,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 await migrate();
+void checkMailer();
 app.listen(config.port, () => {
   console.log(`gateway listening on :${config.port} (accounts ${pool ? "enabled" : "disabled"})`);
 });

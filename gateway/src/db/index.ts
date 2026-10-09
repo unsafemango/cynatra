@@ -19,6 +19,17 @@ ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id text;
 CREATE UNIQUE INDEX IF NOT EXISTS users_google_id ON users (google_id);
 
+-- Email/password sign-ups waiting for their emailed code. A row becomes a
+-- user only once the code is confirmed.
+CREATE TABLE IF NOT EXISTS pending_signups (
+  email         text PRIMARY KEY,
+  password_hash text NOT NULL,
+  code_hash     text NOT NULL,
+  expires_at    timestamptz NOT NULL,
+  attempts      int NOT NULL DEFAULT 0,
+  last_sent_at  timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS watchlist (
   user_id  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title_id text NOT NULL,

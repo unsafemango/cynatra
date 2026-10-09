@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, requireDb, signToken } from "../auth.js";
 import { config } from "../config.js";
 import { pool } from "../db/index.js";
 import { findOrCreateGoogleUser, GoogleAuthError, verifyGoogleCredential } from "../google.js";
+import { sendSignupCode } from "../mailer.js";
+import { CODE_TTL_MINUTES, RESEND_COOLDOWN_SECONDS, resendCode, SignupError, startSignup, verifySignup } from "../signup.js";
 
 export const authRouter = Router();
 
@@ -13,6 +15,7 @@ const credentials = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
+// Step 1 of email sign-up: email a code. No account exists until step 2.
 authRouter.post("/register", requireDb, async (req, res) => {
   const parsed = credentials.safeParse(req.body);
   if (!parsed.success) {
@@ -20,28 +23,50 @@ authRouter.post("/register", requireDb, async (req, res) => {
     return;
   }
   const { email, password } = parsed.data;
-  const hash = await bcrypt.hash(password, 10);
-  const { rows } = await pool!.query<{ id: string }>(
-    `INSERT INTO users (email, password_hash) VALUES ($1, $2)
-     ON CONFLICT (email) DO NOTHING RETURNING id`,
-    [email, hash],
-  );
-  if (!rows[0]) {
-    const { rows: existing } = await pool!.query<{ password_hash: string | null }>(
-      "SELECT password_hash FROM users WHERE email = $1",
-      [email],
-    );
-    const googleOnly = existing[0] && !existing[0].password_hash;
-    res.status(409).json({
-      error: googleOnly
-        ? "This email signs in with Google. Use “Continue with Google” instead."
-        : "That email is already registered.",
-    });
+  await withSignupErrors(res, async () => {
+    await startSignup(pool!, email, await bcrypt.hash(password, 10), sendSignupCode);
+    res.status(202).json({ email, expiresInMinutes: CODE_TTL_MINUTES, resendAfterSeconds: RESEND_COOLDOWN_SECONDS });
+  });
+});
+
+// Step 2: the emailed code creates the account and signs in.
+authRouter.post("/register/verify", requireDb, async (req, res) => {
+  const parsed = z
+    .object({ email: z.string().trim().toLowerCase().email(), code: z.string().trim().regex(/^\d{6}$/) })
+    .safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter the 6-digit code from the email." });
     return;
   }
-  const user = { id: rows[0].id, email };
-  res.status(201).json({ token: signToken(user), user: { ...user, region: "US" } });
+  await withSignupErrors(res, async () => {
+    const user = await verifySignup(pool!, parsed.data.email, parsed.data.code);
+    res.status(201).json({ token: signToken(user), user });
+  });
 });
+
+authRouter.post("/register/resend", requireDb, async (req, res) => {
+  const parsed = z.object({ email: z.string().trim().toLowerCase().email() }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid email." });
+    return;
+  }
+  await withSignupErrors(res, async () => {
+    await resendCode(pool!, parsed.data.email, sendSignupCode);
+    res.status(202).json({ email: parsed.data.email, resendAfterSeconds: RESEND_COOLDOWN_SECONDS });
+  });
+});
+
+async function withSignupErrors(res: Response, fn: () => Promise<void>) {
+  try {
+    await fn();
+  } catch (err) {
+    if (err instanceof SignupError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+}
 
 authRouter.post("/login", requireDb, async (req, res) => {
   const parsed = credentials.safeParse(req.body);
