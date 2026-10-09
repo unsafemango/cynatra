@@ -90,6 +90,7 @@ Title IDs look like `movie:155` or `tv:1399`.
 2. Genres are ORed (`comedy|horror`). Movie and series are built with `without_genres=animation`; animation always requires the animation genre. TMDB has no TV genre for horror, romance, thriller, history or music, so those return nothing for series.
 3. A vote-count floor (150 for movies, 80 for TV) keeps obscure 10/10s out.
 4. The picker reads page 1 for the total, then samples random pages (capped at 100) until it finds an ID that isn't excluded.
+5. **Bright & colourful look** (`look: "colorful"`): each candidate's backdrop and poster are scored for colourfulness (Hasler & Süsstrunk), brightness and hue variety, and only vivid ones are kept. Scores are cached for 30 days. Crime, thriller, horror and war are left out unless chosen as genres, because a vivid poster doesn't make a dark film light. Thresholds were calibrated on 12 vivid vs 12 dark titles (10/12 vs 0/12 pass).
 
 ## Tests
 
