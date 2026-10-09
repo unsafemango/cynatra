@@ -1,7 +1,7 @@
 // Slot-machine reel shown while the picker works.
 const FRAMES = ["🎬", "🍿", "📺", "👻", "🚀", "💘", "🐉", "🤠", "🕵️", "😂"];
 
-export function SpinLoader() {
+export function SpinLoader({ message = "Spinning…" }: { message?: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface h-[360px] grid place-items-center" aria-live="polite">
       <div className="flex flex-col items-center gap-5">
@@ -19,7 +19,7 @@ export function SpinLoader() {
             </div>
           ))}
         </div>
-        <p className="text-sm text-muted">Spinning…</p>
+        <p className="text-sm text-muted">{message}</p>
       </div>
     </div>
   );

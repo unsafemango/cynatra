@@ -227,7 +227,15 @@ export default function SpinPage() {
       </section>
 
       <div ref={resultRef} className="scroll-mt-20">
-        {loading && <SpinLoader />}
+        {loading && (
+          <SpinLoader
+            message={
+              filters.look === "colorful" && source === "filters"
+                ? "Looking for something bright & colourful…"
+                : undefined
+            }
+          />
+        )}
         {!loading && error && (
           <div className="rounded-2xl border border-border bg-surface p-8 text-center">
             <p className="text-lg">😶 {error}</p>

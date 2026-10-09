@@ -61,3 +61,12 @@ func genreIDs(slugs []string, media string) []int {
 	}
 	return ids
 }
+
+// darkGenreIDs are left out by the bright & colourful look unless asked for:
+// crime, thriller, horror and war (TV has no thriller or horror genre).
+func darkGenreIDs(media string) []int {
+	if media == "tv" {
+		return []int{80, 10768}
+	}
+	return []int{80, 53, 27, 10752}
+}

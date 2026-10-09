@@ -12,12 +12,14 @@ const TYPES: { value: PickType; label: string }[] = [
   { value: "animation", label: "Animation" },
 ];
 
-export const MOODS: { label: string; genres: string[] }[] = [
+export const MOODS: { label: string; genres: string[]; look?: Filters["look"] }[] = [
   { label: "☕ Cozy", genres: ["comedy", "family", "romance"] },
   { label: "👻 Scary", genres: ["horror", "thriller", "mystery"] },
   { label: "☀️ Feel-good", genres: ["comedy", "music", "adventure"] },
   { label: "🌀 Mind-bending", genres: ["scifi", "mystery", "thriller"] },
   { label: "⚡ Adrenaline", genres: ["action", "adventure", "thriller"] },
+  // Genres plus the Look filter, so it's colourful by what's on screen, not just by genre.
+  { label: "🦄 Colourful fun", genres: ["comedy", "family", "fantasy", "music", "adventure"], look: "colorful" },
 ];
 
 const LANGUAGES = [
@@ -51,9 +53,12 @@ export function FilterPanel({
   genres: Genre[];
   onChange: (f: Filters) => void;
 }) {
-  const [showMore, setShowMore] = useState(
-    Boolean(filters.maxRuntime || filters.language),
-  );
+  // Filters tucked under "More filters"; the toggle shows how many are on so a
+  // vibe that turns one on (e.g. Colourful fun → Look) is never invisible.
+  const hiddenActive = [filters.look === "colorful", Boolean(filters.maxRuntime), Boolean(filters.language)].filter(
+    Boolean,
+  ).length;
+  const [showMore, setShowMore] = useState(hiddenActive > 0);
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const toggleGenre = (slug: string) =>
     set({
@@ -75,9 +80,13 @@ export function FilterPanel({
       <Section label="Vibe" hint="Shortcut for a set of genres">
         <div className="flex flex-wrap gap-2">
           {MOODS.map((m) => {
-            const active = sameSet(filters.genres, m.genres);
+            const active = sameSet(filters.genres, m.genres) && (!m.look || filters.look === m.look);
+            const toggle = () =>
+              m.look
+                ? set(active ? { genres: [], look: "any" } : { genres: m.genres, look: m.look })
+                : set({ genres: active ? [] : m.genres });
             return (
-              <Chip key={m.label} active={active} onClick={() => set({ genres: active ? [] : m.genres })}>
+              <Chip key={m.label} active={active} onClick={toggle}>
                 {m.label}
               </Chip>
             );
@@ -135,35 +144,52 @@ export function FilterPanel({
           aria-expanded={showMore}
         >
           {showMore ? "▾" : "▸"} More filters
+          {hiddenActive > 0 && <span className="text-accent"> · {hiddenActive} on</span>}
         </button>
         {showMore && (
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:max-w-md">
-            <Field label="Length">
-              <select
-                value={filters.maxRuntime ?? 0}
-                onChange={(e) => set({ maxRuntime: Number(e.target.value) || undefined })}
-                className={inputCls}
-              >
-                {RUNTIMES.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Language">
-              <select
-                value={filters.language ?? ""}
-                onChange={(e) => set({ language: e.target.value || undefined })}
-                className={inputCls}
-              >
-                {LANGUAGES.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <div className="mt-4 space-y-5">
+            <div>
+              <p className="text-xs text-muted mb-1.5">
+                Look ·{" "}
+                {filters.look === "colorful" ? "vivid colours and bright scenes, judged from each title's images" : "any"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={filters.look !== "colorful"} onClick={() => set({ look: "any" })}>
+                  Any look
+                </Chip>
+                <Chip active={filters.look === "colorful"} onClick={() => set({ look: "colorful" })}>
+                  🦄 Bright &amp; colourful
+                </Chip>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+              <Field label="Length">
+                <select
+                  value={filters.maxRuntime ?? 0}
+                  onChange={(e) => set({ maxRuntime: Number(e.target.value) || undefined })}
+                  className={inputCls}
+                >
+                  {RUNTIMES.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Language">
+                <select
+                  value={filters.language ?? ""}
+                  onChange={(e) => set({ language: e.target.value || undefined })}
+                  className={inputCls}
+                >
+                  {LANGUAGES.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
           </div>
         )}
       </div>

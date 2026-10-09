@@ -79,6 +79,11 @@ export function ResultCard({
         <div className="min-w-0 flex flex-col">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             <span className="px-2 py-0.5 rounded-full bg-surface-2 border border-border">{KIND_LABEL[t.kind]}</span>
+            {t.colorful && (
+              <span className="px-2 py-0.5 rounded-full border border-accent-2/50 text-accent-2" title="Picked for its bright, colourful look">
+                🦄 Bright &amp; colourful
+              </span>
+            )}
             {t.year && <span>{t.year}</span>}
             {runtime && <span>· {runtime}</span>}
             {t.seasons ? <span>· {t.seasons} season{t.seasons > 1 ? "s" : ""}</span> : null}

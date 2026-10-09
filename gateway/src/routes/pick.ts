@@ -19,6 +19,7 @@ const pickRequest = z.object({
   // Titles to skip this session (e.g. recent rerolls), sent by the client.
   excludeIds: z.array(titleId).max(500).default([]),
   excludeSeen: z.boolean().default(true),
+  look: z.enum(["any", "colorful"]).default("any"),
 });
 
 pickRouter.get("/genres", async (_req, res) => {

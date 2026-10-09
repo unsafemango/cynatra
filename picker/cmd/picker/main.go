@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cynatra/picker/internal/cache"
+	"github.com/cynatra/picker/internal/look"
 	"github.com/cynatra/picker/internal/picker"
 	"github.com/cynatra/picker/internal/tmdb"
 )
@@ -29,7 +30,7 @@ func main() {
 	c, kind := cache.New(ctx, os.Getenv("REDIS_URL"))
 	log.Printf("cache: %s", kind)
 
-	p := picker.New(tmdb.NewClient(key, c))
+	p := picker.New(tmdb.NewClient(key, c), look.NewScorer(c))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {

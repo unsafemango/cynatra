@@ -35,7 +35,9 @@ func NewClient(key string, c cache.Cache) *Client {
 }
 
 type DiscoverResult struct {
-	ID int `json:"id"`
+	ID           int    `json:"id"`
+	PosterPath   string `json:"poster_path"`
+	BackdropPath string `json:"backdrop_path"`
 }
 
 type DiscoverPage struct {

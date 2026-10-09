@@ -57,3 +57,34 @@ func TestBuildQuerySingleYear(t *testing.T) {
 		t.Errorf("got %v", q)
 	}
 }
+
+func TestNormalizeLook(t *testing.T) {
+	for in, want := range map[string]string{"": "any", "any": "any", "colorful": "colorful", "colourful": "colorful"} {
+		r := Request{Look: in}
+		if err := Normalize(&r); err != nil || r.Look != want {
+			t.Errorf("look %q: got %q, %v", in, r.Look, err)
+		}
+	}
+	if err := Normalize(&Request{Look: "neon"}); err == nil {
+		t.Error("expected error for unknown look")
+	}
+}
+
+func TestColorfulLookExcludesDarkGenresUnlessChosen(t *testing.T) {
+	q, _ := buildQuery(attempt{"movie", "movie"}, Request{Look: "colorful"})
+	if got := q.Get("without_genres"); got != "16,80,53,27,10752" {
+		t.Errorf("without_genres = %q", got)
+	}
+	q, _ = buildQuery(attempt{"movie", "movie"}, Request{Look: "colorful", Genres: []string{"crime"}})
+	if got := q.Get("without_genres"); got != "16,53,27,10752" {
+		t.Errorf("chosen crime should stay allowed: without_genres = %q", got)
+	}
+	q, _ = buildQuery(attempt{"animation", "tv"}, Request{Look: "colorful"})
+	if got := q.Get("without_genres"); got != "80,10768" {
+		t.Errorf("animated series: without_genres = %q", got)
+	}
+	q, _ = buildQuery(attempt{"movie", "movie"}, Request{Look: "any"})
+	if got := q.Get("without_genres"); got != "16" {
+		t.Errorf("any look: without_genres = %q", got)
+	}
+}

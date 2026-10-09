@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/cynatra/picker/internal/look"
 	"github.com/cynatra/picker/internal/tmdb"
 )
 
@@ -29,6 +32,7 @@ type Request struct {
 	Language   string   `json:"language"`   // ISO 639-1, e.g. "en"
 	Region     string   `json:"region"`     // ISO 3166-1, for where-to-watch
 	ExcludeIDs []string `json:"excludeIds"` // "movie:123", "tv:456"
+	Look       string   `json:"look"`       // "any" | "colorful" (bright & colourful)
 }
 
 type Provider struct {
@@ -61,11 +65,20 @@ type Title struct {
 	TrailerKey   string        `json:"trailerKey,omitempty"` // YouTube video ID
 	TMDBURL      string        `json:"tmdbUrl"`
 	WhereToWatch *WhereToWatch `json:"whereToWatch,omitempty"`
+	// Colorful is set when the title was picked by the bright & colourful look filter.
+	Colorful bool `json:"colorful,omitempty"`
 }
 
-type Picker struct{ tmdb *tmdb.Client }
+type Picker struct {
+	tmdb  *tmdb.Client
+	looks *look.Scorer
+}
 
-func New(c *tmdb.Client) *Picker { return &Picker{tmdb: c} }
+func New(c *tmdb.Client, looks *look.Scorer) *Picker { return &Picker{tmdb: c, looks: looks} }
+
+// With the look filter on, each page costs image downloads (cached afterwards),
+// so only this many pages are searched before giving up.
+const maxLookPages = 8
 
 type attempt struct{ kind, media string }
 
@@ -83,6 +96,14 @@ func Normalize(r *Request) error {
 	}
 	if r.YearFrom > 0 && r.YearTo > 0 && r.YearFrom > r.YearTo {
 		r.YearFrom, r.YearTo = r.YearTo, r.YearFrom
+	}
+	switch r.Look {
+	case "", "any":
+		r.Look = "any"
+	case "colorful", "colourful":
+		r.Look = "colorful"
+	default:
+		return fmt.Errorf("unknown look %q", r.Look)
 	}
 	if r.Region == "" {
 		r.Region = "US"
@@ -139,53 +160,103 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 		return nil, ErrNoMatch
 	}
 	pages := min(first.TotalPages, maxPages)
+	budget := pages
+	if r.Look == "colorful" {
+		budget = min(pages, maxLookPages)
+	}
 
 	// Sample a few random pages; fall back to scanning in order if the user
 	// has excluded most of a small result set.
 	tried := map[int]bool{}
-	for i := 0; i < 5 && len(tried) < pages; i++ {
+	for i := 0; i < 5 && len(tried) < budget; i++ {
 		n := rand.IntN(pages) + 1
 		if tried[n] {
 			continue
 		}
 		tried[n] = true
-		if id, ok, err := p.randomFromPage(ctx, a.media, q, n, first, excluded); err != nil {
-			return nil, err
-		} else if ok {
-			return p.details(ctx, a, id, r.Region)
+		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded); err != nil || ok {
+			return t, err
 		}
 	}
-	for n := 1; n <= pages; n++ {
+	for n := 1; n <= pages && len(tried) < budget; n++ {
 		if tried[n] {
 			continue
 		}
-		if id, ok, err := p.randomFromPage(ctx, a.media, q, n, first, excluded); err != nil {
-			return nil, err
-		} else if ok {
-			return p.details(ctx, a, id, r.Region)
+		tried[n] = true
+		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded); err != nil || ok {
+			return t, err
 		}
 	}
 	return nil, ErrNoMatch
 }
 
-func (p *Picker) randomFromPage(ctx context.Context, media string, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool) (int, bool, error) {
+func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool) (*Title, bool, error) {
+	res, ok, err := p.randomFromPage(ctx, a.media, q, n, first, excluded, r.Look == "colorful")
+	if err != nil || !ok {
+		return nil, false, err
+	}
+	t, err := p.details(ctx, a, res.ID, r.Region)
+	if t != nil && r.Look == "colorful" {
+		t.Colorful = true
+	}
+	return t, err == nil, err
+}
+
+func (p *Picker) randomFromPage(ctx context.Context, media string, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, colorful bool) (tmdb.DiscoverResult, bool, error) {
 	page := first
 	if n != 1 {
 		var err error
 		if page, err = p.tmdb.Discover(ctx, media, withPage(q, n)); err != nil {
-			return 0, false, err
+			return tmdb.DiscoverResult{}, false, err
 		}
 	}
-	var ids []int
+	var candidates []tmdb.DiscoverResult
 	for _, res := range page.Results {
 		if !excluded[fmt.Sprintf("%s:%d", media, res.ID)] {
-			ids = append(ids, res.ID)
+			candidates = append(candidates, res)
 		}
 	}
-	if len(ids) == 0 {
-		return 0, false, nil
+	if colorful {
+		candidates = p.brightAndColorful(ctx, candidates)
 	}
-	return ids[rand.IntN(len(ids))], true, nil
+	if len(candidates) == 0 {
+		return tmdb.DiscoverResult{}, false, nil
+	}
+	return candidates[rand.IntN(len(candidates))], true, nil
+}
+
+// brightAndColorful keeps the candidates whose backdrop and poster look vivid.
+// Images are scored in parallel; one that can't be fetched just doesn't count.
+func (p *Picker) brightAndColorful(ctx context.Context, candidates []tmdb.DiscoverResult) []tmdb.DiscoverResult {
+	keep := make([]bool, len(candidates))
+	sem := make(chan struct{}, 8)
+	var wg sync.WaitGroup
+	for i, c := range candidates {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			var scores []look.Score
+			for _, path := range []string{c.BackdropPath, c.PosterPath} {
+				if path == "" {
+					continue
+				}
+				if s, err := p.looks.ScorePath(ctx, path); err == nil {
+					scores = append(scores, s)
+				}
+			}
+			keep[i] = look.BrightAndColorful(scores...)
+		}()
+	}
+	wg.Wait()
+	var out []tmdb.DiscoverResult
+	for i, c := range candidates {
+		if keep[i] {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func buildQuery(a attempt, r Request) (url.Values, bool) {
@@ -205,15 +276,29 @@ func buildQuery(a attempt, r Request) (url.Values, bool) {
 			g += "," + strconv.Itoa(ids[rand.IntN(len(ids))])
 		}
 		q.Set("with_genres", g)
-	} else {
-		if len(ids) > 0 {
-			parts := make([]string, len(ids))
-			for i, id := range ids {
-				parts[i] = strconv.Itoa(id)
-			}
-			q.Set("with_genres", strings.Join(parts, "|")) // | = OR
+	} else if len(ids) > 0 {
+		parts := make([]string, len(ids))
+		for i, id := range ids {
+			parts[i] = strconv.Itoa(id)
 		}
-		q.Set("without_genres", strconv.Itoa(animationGenreID))
+		q.Set("with_genres", strings.Join(parts, "|")) // | = OR
+	}
+
+	var without []string
+	if a.kind != "animation" {
+		without = append(without, strconv.Itoa(animationGenreID))
+	}
+	if r.Look == "colorful" {
+		// A vivid poster doesn't make a crime thriller light-hearted, so the
+		// bright & colourful look leaves out dark genres the user didn't ask for.
+		for _, id := range darkGenreIDs(a.media) {
+			if !slices.Contains(ids, id) {
+				without = append(without, strconv.Itoa(id))
+			}
+		}
+	}
+	if len(without) > 0 {
+		q.Set("without_genres", strings.Join(without, ",")) // excludes titles with any of them
 	}
 
 	if r.MinRating > 0 {

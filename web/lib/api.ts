@@ -23,6 +23,8 @@ export type Title = {
   trailerKey?: string;
   tmdbUrl: string;
   whereToWatch?: { link: string; stream: Provider[]; rent: Provider[]; buy: Provider[] };
+  /** Picked by the bright & colourful look filter. */
+  colorful?: boolean;
 };
 
 export type Genre = { slug: string; label: string };
@@ -35,6 +37,8 @@ export type Filters = {
   yearTo?: number;
   maxRuntime?: number;
   language?: string;
+  /** "colorful": only titles whose images look bright and colourful. */
+  look?: "any" | "colorful";
 };
 
 export type User = { id: string; email: string; region: string };
