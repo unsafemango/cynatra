@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
+-- Google sign-in: accounts can have a Google ID, a password, or both.
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS users_google_id ON users (google_id);
+
 CREATE TABLE IF NOT EXISTS watchlist (
   user_id  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title_id text NOT NULL,

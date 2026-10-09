@@ -33,6 +33,20 @@ async function sendPage(
   res.json({ items, total: count[0].n, page, pageSize });
 }
 
+// How many items each Library tab has, so the page can label tabs and show an
+// empty tab straight away instead of a loading placeholder.
+libraryRouter.get("/counts", async (req, res) => {
+  const { rows } = await pool!.query<Record<string, number>>(
+    `SELECT
+       (SELECT count(*)::int FROM watchlist WHERE user_id = $1) AS watchlist,
+       (SELECT count(*)::int FROM watching  WHERE user_id = $1) AS watching,
+       (SELECT count(*)::int FROM seen      WHERE user_id = $1 AND title IS NOT NULL) AS seen,
+       (SELECT count(*)::int FROM history   WHERE user_id = $1) AS history`,
+    [req.user!.id],
+  );
+  res.json(rows[0]);
+});
+
 libraryRouter.get("/watchlist", async (req, res) => {
   await sendPage(
     req,

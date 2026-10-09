@@ -2,7 +2,9 @@ import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireDb, signToken } from "../auth.js";
+import { config } from "../config.js";
 import { pool } from "../db/index.js";
+import { findOrCreateGoogleUser, GoogleAuthError, verifyGoogleCredential } from "../google.js";
 
 export const authRouter = Router();
 
@@ -25,7 +27,16 @@ authRouter.post("/register", requireDb, async (req, res) => {
     [email, hash],
   );
   if (!rows[0]) {
-    res.status(409).json({ error: "That email is already registered." });
+    const { rows: existing } = await pool!.query<{ password_hash: string | null }>(
+      "SELECT password_hash FROM users WHERE email = $1",
+      [email],
+    );
+    const googleOnly = existing[0] && !existing[0].password_hash;
+    res.status(409).json({
+      error: googleOnly
+        ? "This email signs in with Google. Use “Continue with Google” instead."
+        : "That email is already registered.",
+    });
     return;
   }
   const user = { id: rows[0].id, email };
@@ -39,17 +50,45 @@ authRouter.post("/login", requireDb, async (req, res) => {
     return;
   }
   const { email, password } = parsed.data;
-  const { rows } = await pool!.query<{ id: string; password_hash: string; region: string }>(
+  const { rows } = await pool!.query<{ id: string; password_hash: string | null; region: string }>(
     "SELECT id, password_hash, region FROM users WHERE email = $1",
     [email],
   );
   const row = rows[0];
-  if (!row || !(await bcrypt.compare(password, row.password_hash))) {
+  if (row && !row.password_hash) {
+    res.status(401).json({ error: "This account uses Google sign-in. Use “Continue with Google” instead." });
+    return;
+  }
+  if (!row || !(await bcrypt.compare(password, row.password_hash!))) {
     res.status(401).json({ error: "Invalid email or password." });
     return;
   }
   const user = { id: row.id, email };
   res.json({ token: signToken(user), user: { ...user, region: row.region } });
+});
+
+// What sign-in options the frontend should offer.
+authRouter.get("/config", (_req, res) => {
+  res.json({ accounts: Boolean(pool), googleClientId: pool ? (config.googleClientId ?? null) : null });
+});
+
+authRouter.post("/google", requireDb, async (req, res) => {
+  const parsed = z.object({ credential: z.string().min(20).max(5000) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Missing Google credential." });
+    return;
+  }
+  try {
+    const profile = await verifyGoogleCredential(parsed.data.credential);
+    const { created, ...user } = await findOrCreateGoogleUser(pool!, profile);
+    res.status(created ? 201 : 200).json({ token: signToken(user), user });
+  } catch (err) {
+    if (err instanceof GoogleAuthError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 authRouter.get("/me", requireDb, requireAuth, async (req, res) => {

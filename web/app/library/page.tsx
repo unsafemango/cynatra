@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Pagination } from "@/components/Pagination";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -50,6 +50,12 @@ export default function LibraryPage() {
   // Short confirmation after an item moves between tabs.
   const [notice, setNotice] = useState<string | null>(null);
   const [urlRead, setUrlRead] = useState(false);
+  // Item count per tab: labels the tabs and lets an empty tab show its empty
+  // message right away instead of a loading placeholder.
+  const [counts, setCounts] = useState<Record<Tab, number> | null>(null);
+  const [countsTick, setCountsTick] = useState(0);
+  // Which tab/page has been loading long enough to deserve a placeholder.
+  const [slowKey, setSlowKey] = useState<string | null>(null);
   const listTop = useRef<HTMLDivElement>(null);
   const items = data?.items ?? null;
 
@@ -81,6 +87,29 @@ export default function LibraryPage() {
     const t = setTimeout(() => setNotice(null), 3000);
     return () => clearTimeout(t);
   }, [notice]);
+
+  useEffect(() => {
+    if (!user || !urlRead) return;
+    let cancelled = false;
+    api<Record<Tab, number>>("/api/me/counts")
+      .then((c) => !cancelled && setCounts(c))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, urlRead, reload, countsTick]);
+
+  // Counts can change while this (kept-alive) page is hidden, e.g. a spin adds
+  // to History; forget them so a stale 0 never shows an empty tab by mistake.
+  useLayoutEffect(() => () => setCounts(null), []);
+
+  // Only show the loading placeholder if a load takes noticeably long.
+  const loadKey = `${tab}:${page}`;
+  useEffect(() => {
+    if (data) return;
+    const t = setTimeout(() => setSlowKey(loadKey), 250);
+    return () => clearTimeout(t);
+  }, [data, loadKey]);
 
   useEffect(() => {
     if (!user || !urlRead) return;
@@ -143,6 +172,7 @@ export default function LibraryPage() {
     // On the Seen tab, unmarking removes the row.
     if (tab === "seen" && !seen) return dropRow(item);
     setData((cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, seen } : i)) });
+    setCountsTick((n) => n + 1); // the Seen tab's count changed
   };
 
   const remove = async (item: Item) => {
@@ -172,9 +202,12 @@ export default function LibraryPage() {
     await api("/api/me/history", { method: "DELETE" });
     setPage(1);
     setData((cur) => cur && { ...cur, items: [], total: 0, page: 1 });
+    setCountsTick((n) => n + 1);
   };
 
   const current = TABS.find((t) => t.id === tab)!;
+  const knownEmpty = !items && !error && counts?.[tab] === 0;
+  const showSkeleton = !items && !error && !knownEmpty && slowKey === loadKey;
 
   return (
     <div>
@@ -191,6 +224,10 @@ export default function LibraryPage() {
               }`}
             >
               {t.label}
+              {/* Counts only where there's room; four tabs just fit on a phone. */}
+              {counts && (
+                <span className="hidden sm:inline ml-1.5 text-xs tabular-nums text-muted">{counts[t.id]}</span>
+              )}
             </button>
           ))}
         </div>
@@ -216,8 +253,8 @@ export default function LibraryPage() {
           </p>
         )}
         {error && <p className="text-accent">{error}</p>}
-        {!items && !error && <ListSkeleton />}
-        {items?.length === 0 && (
+        {showSkeleton && <ListSkeleton rows={Math.min(3, counts?.[tab] ?? 3)} />}
+        {(items?.length === 0 || knownEmpty) && (
           <p className="text-muted text-center py-12">
             {current.empty}{" "}
             <Link href="/" className="text-foreground underline underline-offset-4">
@@ -333,10 +370,10 @@ const quietBtn = "border-border text-muted hover:text-foreground hover:border-mu
 const seenBtn = "border-accent text-accent hover:bg-accent/10";
 const primaryBtn = "border-accent bg-accent text-white hover:brightness-110";
 
-function ListSkeleton() {
+function ListSkeleton({ rows }: { rows: number }) {
   return (
     <ul className="grid gap-3" aria-label="Loading">
-      {[0, 1, 2].map((i) => (
+      {Array.from({ length: rows }, (_, i) => (
         <li key={i} className="flex gap-4 p-3 rounded-xl bg-surface border border-border animate-pulse">
           <div className="w-20 sm:w-24 aspect-[2/3] rounded-lg bg-surface-2" />
           <div className="flex-1 pt-2 space-y-2">

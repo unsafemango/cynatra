@@ -40,6 +40,14 @@ cd gateway && npm install && cp .env.example .env && npm run dev
 cd web && npm install && npm run dev
 ```
 
+## Sign in with Google (optional)
+
+1. In [Google Cloud Console](https://console.cloud.google.com), create a project, then set up the OAuth consent screen (External).
+2. **Credentials → Create credentials → OAuth client ID → Web application.** Under *Authorized JavaScript origins* add `http://localhost:3000` (and your real domain when you deploy). No redirect URIs are needed.
+3. Put the client ID in `.env` as `GOOGLE_CLIENT_ID=…` (root `.env` for Docker, `gateway/.env` when running the gateway directly) and restart the gateway: `docker compose up -d gateway`.
+
+The "Continue with Google" button appears on the login page once the gateway has a client ID. The gateway verifies Google's ID token, then signs the user in with a normal Cynatra session.
+
 ## API (gateway, port 4000)
 
 | Method | Path | Auth | Notes |
@@ -48,7 +56,10 @@ cd web && npm install && npm run dev
 | GET | `/api/genres` | – | Genre slugs and labels |
 | GET | `/api/title/:media/:id` | – | One title (for share links) |
 | POST | `/api/auth/register`, `/api/auth/login` | – | `{email, password}` → `{token, user}` |
+| POST | `/api/auth/google` | – | `{credential}` (Google ID token) → `{token, user}`. Creates the account, or links Google to an existing one with the same verified email. |
+| GET | `/api/auth/config` | – | `{accounts, googleClientId}`: which sign-in options to show |
 | GET/PATCH | `/api/auth/me` | ✓ | PATCH `{region}` sets the where-to-watch country |
+| GET | `/api/me/counts` | ✓ | `{watchlist, watching, seen, history}` item counts |
 | GET/POST | `/api/me/watchlist` | ✓ | POST a title object |
 | DELETE | `/api/me/watchlist/:titleId` | ✓ | |
 | POST | `/api/me/watchlist/pick` | ✓ | Random unseen title from the watchlist. Body: `{excludeIds[]}`. 404 with `code: "empty"` or `"exhausted"`. |

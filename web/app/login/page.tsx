@@ -2,18 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { LogoMark } from "@/components/Logo";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { user, ready, login, register, logout } = useAuth();
+  const { user, ready, login, register, loginWithGoogle, logout } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set by the gateway; null hides the Google button.
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<{ googleClientId: string | null }>("/api/auth/config")
+      .then((c) => setGoogleClientId(c.googleClientId))
+      .catch(() => setGoogleClientId(null));
+  }, []);
 
   // Next.js keeps this page mounted (hidden) after you leave it, form values
   // included. Never keep a typed password around: clear it, and any error,
@@ -37,6 +47,21 @@ export default function LoginPage() {
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onGoogle = async (credential: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await loginWithGoogle(credential);
+      setEmail("");
+      setPassword("");
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
       setBusy(false);
     }
@@ -69,7 +94,18 @@ export default function LoginPage() {
       <h1 className="text-2xl font-semibold tracking-tight">{mode === "login" ? "Welcome back" : "Create an account"}</h1>
       <p className="mt-1 text-sm text-muted">Save a watchlist, keep your pick history, and skip what you&apos;ve seen.</p>
 
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      {googleClientId && (
+        <div className="mt-6">
+          <GoogleSignIn clientId={googleClientId} onCredential={onGoogle} onError={setError} />
+          <div className="mt-5 flex items-center gap-3 text-xs text-muted" role="separator">
+            <span className="h-px flex-1 bg-border" />
+            or use email
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={submit} className={googleClientId ? "mt-5 space-y-3" : "mt-6 space-y-3"}>
         <input
           type="email"
           required

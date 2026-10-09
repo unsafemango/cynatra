@@ -4,6 +4,8 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || undefined,
   jwtSecret: process.env.JWT_SECRET ?? "dev-only-secret",
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(","),
+  // OAuth client ID for "Sign in with Google". Empty: the Google button is hidden.
+  googleClientId: process.env.GOOGLE_CLIENT_ID || undefined,
 };
 
 if (process.env.NODE_ENV === "production" && config.jwtSecret === "dev-only-secret") {
