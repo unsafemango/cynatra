@@ -81,6 +81,9 @@ func Normalize(r *Request) error {
 	if r.MinRating < 0 || r.MinRating > 10 {
 		return fmt.Errorf("minRating must be between 0 and 10")
 	}
+	if r.YearFrom > 0 && r.YearTo > 0 && r.YearFrom > r.YearTo {
+		r.YearFrom, r.YearTo = r.YearTo, r.YearFrom
+	}
 	if r.Region == "" {
 		r.Region = "US"
 	}

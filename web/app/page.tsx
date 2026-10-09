@@ -17,6 +17,9 @@ const MIN_SPIN_MS = 900;
 export default function SpinPage() {
   const { user } = useAuth();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  // Remounts the filter panel once saved filters load, so its local UI state
+  // (e.g. which year mode is open) starts from them instead of the defaults.
+  const [restoredFilters, setRestoredFilters] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [result, setResult] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,8 +34,12 @@ export default function SpinPage() {
     try {
       const stored = localStorage.getItem(FILTERS_KEY);
       // Restored after mount (not in useState) so server and client HTML match.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (stored) setFilters({ ...DEFAULT_FILTERS, ...JSON.parse(stored) });
+      if (stored) {
+        /* eslint-disable react-hooks/set-state-in-effect */
+        setFilters({ ...DEFAULT_FILTERS, ...JSON.parse(stored) });
+        setRestoredFilters(true);
+        /* eslint-enable react-hooks/set-state-in-effect */
+      }
     } catch {
       // ignore
     }
@@ -115,7 +122,7 @@ export default function SpinPage() {
       </section>
 
       <section className="rounded-2xl border border-border bg-surface/60 p-5 sm:p-7">
-        <FilterPanel filters={filters} genres={genres} onChange={updateFilters} />
+        <FilterPanel key={restoredFilters ? "restored" : "default"} filters={filters} genres={genres} onChange={updateFilters} />
         <div className="mt-7 flex justify-center">
           <button
             onClick={spin}

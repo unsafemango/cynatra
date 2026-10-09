@@ -43,3 +43,17 @@ func TestNormalize(t *testing.T) {
 		t.Error("expected error for unknown type")
 	}
 }
+
+func TestNormalizeSwapsReversedYears(t *testing.T) {
+	r := Request{YearFrom: 2010, YearTo: 1990}
+	if err := Normalize(&r); err != nil || r.YearFrom != 1990 || r.YearTo != 2010 {
+		t.Errorf("got %d-%d, %v", r.YearFrom, r.YearTo, err)
+	}
+}
+
+func TestBuildQuerySingleYear(t *testing.T) {
+	q, _ := buildQuery(attempt{"movie", "movie"}, Request{YearFrom: 1999, YearTo: 1999})
+	if q.Get("primary_release_date.gte") != "1999-01-01" || q.Get("primary_release_date.lte") != "1999-12-31" {
+		t.Errorf("got %v", q)
+	}
+}

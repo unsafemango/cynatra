@@ -24,6 +24,23 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Tailwind v4 resets buttons to the default arrow cursor; restore the pointer
+   for everything clickable. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  select,
+  summary,
+  input[type="range"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
 body {
   background:
     radial-gradient(1200px 600px at 50% -200px, #ff5a5f22, transparent 70%),

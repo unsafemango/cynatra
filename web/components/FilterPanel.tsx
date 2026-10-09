@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Filters, Genre, PickType } from "@/lib/api";
 import { Chip } from "./Chip";
+import { YearFilter, yearHint } from "./YearFilter";
 
 const TYPES: { value: PickType; label: string }[] = [
   { value: "any", label: "🎲 Surprise me" },
@@ -51,14 +52,13 @@ export function FilterPanel({
   onChange: (f: Filters) => void;
 }) {
   const [showMore, setShowMore] = useState(
-    Boolean(filters.yearFrom || filters.yearTo || filters.maxRuntime || filters.language),
+    Boolean(filters.maxRuntime || filters.language),
   );
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const toggleGenre = (slug: string) =>
     set({
       genres: filters.genres.includes(slug) ? filters.genres.filter((g) => g !== slug) : [...filters.genres, slug],
     });
-  const num = (v: string) => (v ? Number(v) : undefined);
 
   return (
     <div className="space-y-6">
@@ -105,6 +105,10 @@ export function FilterPanel({
         </div>
       </Section>
 
+      <Section label="Release year" hint={yearHint(filters)}>
+        <YearFilter filters={filters} onChange={set} />
+      </Section>
+
       <Section label="Minimum rating" hint={filters.minRating ? `${filters.minRating.toFixed(1)}+ ★` : "Any rating"}>
         <input
           type="range"
@@ -133,29 +137,7 @@ export function FilterPanel({
           {showMore ? "▾" : "▸"} More filters
         </button>
         {showMore && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Field label="From year">
-              <input
-                type="number"
-                min={1900}
-                max={2100}
-                placeholder="Any"
-                value={filters.yearFrom ?? ""}
-                onChange={(e) => set({ yearFrom: num(e.target.value) })}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="To year">
-              <input
-                type="number"
-                min={1900}
-                max={2100}
-                placeholder="Any"
-                value={filters.yearTo ?? ""}
-                onChange={(e) => set({ yearTo: num(e.target.value) })}
-                className={inputCls}
-              />
-            </Field>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:max-w-md">
             <Field label="Length">
               <select
                 value={filters.maxRuntime ?? 0}
