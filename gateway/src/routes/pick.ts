@@ -27,6 +27,17 @@ pickRouter.get("/genres", async (_req, res) => {
   res.status(status).json(body);
 });
 
+// Title search (movies and series), for adding a specific title to the shortlist.
+pickRouter.get("/search", async (req, res) => {
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (!q || q.length > 100) {
+    res.status(400).json({ error: "Type a title to search for." });
+    return;
+  }
+  const { status, body } = await callPicker(`/search?q=${encodeURIComponent(q)}`);
+  res.status(status).json(body);
+});
+
 pickRouter.get("/title/:media/:id", async (req, res) => {
   const { media, id } = req.params;
   if (!/^(movie|tv)$/.test(media) || !/^\d+$/.test(id)) {

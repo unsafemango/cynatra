@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { FilterPanel } from "@/components/FilterPanel";
 import { ResultCard } from "@/components/ResultCard";
 import { SpinLoader } from "@/components/SpinLoader";
@@ -272,6 +273,7 @@ export default function SpinPage() {
                     + Watchlist
                   </Link>
                 )}
+                <AddToShortlistButton title={result} className={secondaryBtn} />
                 <button onClick={onSeen} className={secondaryBtn} title="Never show this again">
                   Seen it
                 </button>

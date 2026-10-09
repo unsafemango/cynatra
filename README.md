@@ -63,6 +63,7 @@ The "Continue with Google" button appears on the login page once the gateway has
 | POST | `/api/pick` | optional | Body: `{type, genres[], minRating, yearFrom?, yearTo?, maxRuntime?, language?, region?, excludeIds[], excludeSeen?}`. Logged-in picks skip seen and in-progress titles and are saved to history. |
 | GET | `/api/genres` | – | Genre slugs and labels |
 | GET | `/api/title/:media/:id` | – | One title (for share links) |
+| GET | `/api/search?q=` | – | Movies and series matching a name (up to 8), for the Shortlist |
 | POST | `/api/auth/register` | – | `{email, password}`: emails a 6-digit code; no account yet (202) |
 | POST | `/api/auth/register/verify` | – | `{email, code}` → `{token, user}`: creates the account and signs in |
 | POST | `/api/auth/register/resend` | – | `{email}`: new code (once a minute) |

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -56,6 +57,20 @@ func main() {
 		default:
 			writeJSON(w, http.StatusOK, t)
 		}
+	})
+	mux.HandleFunc("GET /search", func(w http.ResponseWriter, r *http.Request) {
+		q := strings.TrimSpace(r.URL.Query().Get("q"))
+		if q == "" || len(q) > 100 {
+			writeError(w, http.StatusBadRequest, "Type a title to search for.")
+			return
+		}
+		hits, err := p.Search(r.Context(), q)
+		if err != nil {
+			log.Printf("search: %v", err)
+			writeError(w, http.StatusBadGateway, "Search isn't working right now. Try again.")
+			return
+		}
+		writeJSON(w, http.StatusOK, hits)
 	})
 	mux.HandleFunc("POST /pick", func(w http.ResponseWriter, r *http.Request) {
 		var req picker.Request

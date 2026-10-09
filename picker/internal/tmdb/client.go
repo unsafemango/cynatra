@@ -21,6 +21,7 @@ var ErrNotFound = errors.New("tmdb: not found")
 const (
 	discoverTTL = 6 * time.Hour
 	detailsTTL  = 24 * time.Hour
+	searchTTL   = 1 * time.Hour
 )
 
 type Client struct {
@@ -102,6 +103,32 @@ func (c *Client) Discover(ctx context.Context, media string, q url.Values) (*Dis
 		return nil, err
 	}
 	return &page, nil
+}
+
+// SearchResult is one hit from /search/multi (movies, series and people mixed).
+type SearchResult struct {
+	ID           int     `json:"id"`
+	MediaType    string  `json:"media_type"` // movie | tv | person
+	Title        string  `json:"title"`
+	Name         string  `json:"name"`
+	ReleaseDate  string  `json:"release_date"`
+	FirstAirDate string  `json:"first_air_date"`
+	PosterPath   string  `json:"poster_path"`
+	GenreIDs     []int   `json:"genre_ids"`
+	VoteCount    int     `json:"vote_count"`
+	Popularity   float64 `json:"popularity"`
+}
+
+// SearchMulti searches movies and series by name.
+func (c *Client) SearchMulti(ctx context.Context, query string) ([]SearchResult, error) {
+	var page struct {
+		Results []SearchResult `json:"results"`
+	}
+	q := url.Values{"query": {query}, "include_adult": {"false"}, "page": {"1"}}
+	if err := c.get(ctx, "/search/multi", q, searchTTL, &page); err != nil {
+		return nil, err
+	}
+	return page.Results, nil
 }
 
 // Details fetches a title with videos and watch providers appended.

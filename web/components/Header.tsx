@@ -4,14 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Logo } from "./Logo";
+import { useShortlist } from "@/lib/shortlist";
+import { Logo, LogoMark } from "./Logo";
 
 export function Header() {
   return (
     <header className="border-b border-border/60 bg-background/70 backdrop-blur sticky top-0 z-20">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <Link href="/" aria-label="Cynatra home" className="whitespace-nowrap shrink-0 rounded-md">
-          <Logo size={26} />
+          {/* Phones: just the mark, so Spin · Library · Shortlist · account all fit. */}
+          <LogoMark size={30} className="sm:hidden" />
+          <span className="hidden sm:inline-flex">
+            <Logo size={26} />
+          </span>
         </Link>
         {/* The nav reads the current path (request-time on dynamic routes). */}
         <Suspense fallback={<NavPlaceholder />}>
@@ -24,9 +29,24 @@ export function Header() {
 
 function Nav() {
   const { user, ready } = useAuth();
+  const { items, loaded } = useShortlist();
   const pathname = usePathname();
 
   if (!ready) return <NavPlaceholder />;
+
+  const shortlist = (
+    <NavLink href="/shortlist" current={pathname === "/shortlist"}>
+      Shortlist
+      {loaded && items.length > 0 && (
+        <span
+          className="ml-1.5 inline-grid min-w-5 h-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold text-white tabular-nums"
+          aria-label={`${items.length} in shortlist`}
+        >
+          {items.length}
+        </span>
+      )}
+    </NavLink>
+  );
 
   return (
     <nav aria-label="Main" className="flex items-center gap-1 text-sm whitespace-nowrap">
@@ -38,13 +58,18 @@ function Nav() {
           <NavLink href="/library" current={pathname.startsWith("/library")}>
             Library
           </NavLink>
+          {shortlist}
           <AccountMenu email={user.email} />
         </>
       ) : (
         <>
-          <NavLink href="/login" current={pathname === "/login"}>
-            Log in
-          </NavLink>
+          {shortlist}
+          {/* Phones: no room; the Sign up page has a Log in tab. */}
+          <span className="hidden sm:contents">
+            <NavLink href="/login" current={pathname === "/login"}>
+              Log in
+            </NavLink>
+          </span>
           <Link
             href="/register"
             className="ml-1 px-3 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110"
@@ -62,7 +87,7 @@ function NavLink({ href, current, children }: { href: string; current: boolean; 
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
+      className={`inline-flex items-center px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
         current ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground hover:bg-surface/80"
       }`}
     >

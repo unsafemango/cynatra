@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Pagination } from "@/components/Pagination";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -334,6 +335,9 @@ export default function LibraryPage() {
                         >
                           {item.seen ? "✓ Seen" : "Mark seen"}
                         </button>
+                        {(tab === "watchlist" || tab === "history") && (
+                          <AddToShortlistButton title={item.title} className={`${btn} ${quietBtn}`} />
+                        )}
                         {tab === "watchlist" && (
                           <button
                             onClick={() => remove(item)}

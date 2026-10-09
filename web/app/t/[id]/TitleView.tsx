@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { ResultCard } from "@/components/ResultCard";
 import { api, fromSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -26,7 +27,18 @@ export function TitleView() {
     <div className="space-y-6">
       {error && <p className="text-center text-muted pt-12">{error}</p>}
       {!title && !error && <div className="h-[360px] rounded-2xl bg-surface border border-border animate-pulse" />}
-      {title && <ResultCard title={title} animate={false} />}
+      {title && (
+        <ResultCard
+          title={title}
+          animate={false}
+          actions={
+            <AddToShortlistButton
+              title={title}
+              className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-sm hover:border-muted disabled:opacity-60"
+            />
+          }
+        />
+      )}
       <p className="text-center">
         {/* Spins right away with the visitor's saved filters, skipping this title. */}
         <Link href={`/?spin=1&skip=${id}`} className="text-muted hover:text-foreground">
