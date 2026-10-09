@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
+  const { user, ready, login, register, logout } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -13,12 +14,25 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Next.js keeps this page mounted (hidden) after you leave it, form values
+  // included. Never keep a typed password around: clear it, and any error,
+  // whenever the page is hidden.
+  useLayoutEffect(
+    () => () => {
+      setPassword("");
+      setError(null);
+    },
+    [],
+  );
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
       await (mode === "login" ? login : register)(email, password);
+      setEmail("");
+      setPassword("");
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -26,6 +40,26 @@ export default function LoginPage() {
       setBusy(false);
     }
   };
+
+  if (ready && user && !busy) {
+    return (
+      <div className="max-w-sm mx-auto pt-8 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">You&apos;re logged in</h1>
+        <p className="mt-1 text-sm text-muted">as {user.email}</p>
+        <div className="mt-6 flex justify-center gap-2">
+          <Link href="/" className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:brightness-110">
+            🎲 Go spin
+          </Link>
+          <button
+            onClick={logout}
+            className="px-4 py-2 rounded-lg border border-border text-sm text-muted hover:text-foreground hover:border-muted"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-sm mx-auto pt-8">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { api, type User } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -30,6 +30,9 @@ export default function ProfilePage() {
   const [picked, setRegion] = useState<string | null>(null);
   const region = picked ?? user?.region ?? "US";
   const [status, setStatus] = useState<string | null>(null);
+
+  // Don't show an old "Saved." when coming back to this (kept-alive) page.
+  useLayoutEffect(() => () => setStatus(null), []);
 
   if (ready && !user) {
     return (

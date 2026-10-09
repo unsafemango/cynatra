@@ -22,17 +22,25 @@ export function ResultCard({
   const trailerRef = useRef<HTMLIFrameElement>(null);
 
   // Next.js keeps pages you navigate away from mounted but hidden, and a hidden
-  // iframe keeps playing. Pause the trailer when this card is hidden; YouTube
-  // keeps the position, so it can be resumed on coming back.
+  // iframe keeps playing. Worse, a Back navigation can move the hidden page in
+  // the DOM, which reloads the iframe and (with autoplay) restarts the trailer.
+  // So when this card is hidden: pause right away, then remove the player.
+  const pauseTrailer = useRef(() => {});
   useLayoutEffect(() => {
     const frame = trailerRef.current;
-    return () => {
+    pauseTrailer.current = () =>
       frame?.contentWindow?.postMessage(
         JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
         YOUTUBE_ORIGIN,
       );
-    };
   }, [showTrailer]);
+  useLayoutEffect(
+    () => () => {
+      pauseTrailer.current();
+      setShowTrailer(false);
+    },
+    [],
+  );
   const runtime = formatRuntime(t);
   const providers = t.whereToWatch;
 
