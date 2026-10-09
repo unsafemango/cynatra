@@ -40,26 +40,76 @@ function loadGoogleScript() {
 
 /**
  * Google's official "Continue with Google" button. Calls `onCredential` with
- * the ID token Google returns; the gateway verifies it.
+ * the ID token Google returns; the gateway verifies it. `onPopupClosed` fires
+ * as soon as Google's sign-in popup closes, before Google hands over the
+ * result (which can take a moment), so the page can show progress right away.
  */
 export function GoogleSignIn({
   clientId,
   onCredential,
   onError,
+  onPopupClosed,
 }: {
   clientId: string;
   onCredential: (credential: string) => void;
   onError: (message: string) => void;
+  onPopupClosed?: () => void;
 }) {
   const slot = useRef<HTMLDivElement>(null);
   // "shown" once Google's button actually has a size; Google draws nothing for an
   // unknown client ID or an origin that isn't on the client's allowed list.
   const [status, setStatus] = useState<"loading" | "shown" | "unavailable">("loading");
   // Google keeps the callback from initialize(); route it to the latest props.
-  const handlers = useRef({ onCredential, onError });
+  const handlers = useRef({ onCredential, onError, onPopupClosed });
   useEffect(() => {
-    handlers.current = { onCredential, onError };
+    handlers.current = { onCredential, onError, onPopupClosed };
   });
+
+  // Clicking Google's button focuses its iframe (our window blurs), then the
+  // popup takes focus. When it closes, focus comes back to this window: that's
+  // the moment to report, whether or not an account was picked. The window's
+  // focus event is instant; polling document.hasFocus() is a backup.
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let popupHadFocus = false;
+    let watching = false;
+    const report = () => {
+      if (!watching || !popupHadFocus) return;
+      watching = false;
+      clearInterval(timer);
+      handlers.current.onPopupClosed?.();
+    };
+    const onBlur = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLIFrameElement && slot.current?.contains(active)) {
+        // Focus moved into Google's button: a popup is about to open.
+        watching = true;
+        popupHadFocus = false;
+        const started = Date.now();
+        clearInterval(timer);
+        timer = setInterval(() => {
+          if (!document.hasFocus()) popupHadFocus = true;
+          else report();
+          if (watching && !popupHadFocus && Date.now() - started > 3000) {
+            watching = false; // no popup appeared (e.g. it was blocked)
+            clearInterval(timer);
+          }
+        }, 100);
+      } else if (watching) {
+        popupHadFocus = true; // focus left the page for the popup
+      }
+    };
+    // Only counts once the popup was seen holding focus (so clicking back
+    // into the page after a blocked popup doesn't look like a sign-in).
+    const onFocus = () => report();
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

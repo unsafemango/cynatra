@@ -40,6 +40,11 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [capsLock, setCapsLock] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // "popup-closed": Google's popup just closed; Google is still finishing.
+  // "google": waiting for our server to accept Google's sign-in.
+  // "redirecting": signed in, waiting for the spin page to appear.
+  // All show "Signing you in…" so the form never flashes in between.
+  const [signingIn, setSigningIn] = useState<null | "popup-closed" | "google" | "redirecting">(null);
   // Set after "Create account": the address waiting for its emailed code.
   const [pending, setPending] = useState<{ email: string; resendAfterSeconds: number } | null>(null);
   // From the gateway; null hides the Google button.
@@ -66,6 +71,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
     () => () => {
       setPassword("");
       setShowPassword(false);
+      setSigningIn(null);
       setError(null);
     },
     [],
@@ -88,6 +94,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
         return;
       }
       await login(email, password);
+      setSigningIn("redirecting");
       setEmail("");
       setPassword("");
       router.push("/");
@@ -99,21 +106,44 @@ export function AuthPage({ mode }: { mode: Mode }) {
   };
 
   const onGoogle = async (credential: string) => {
-    setBusy(true);
+    setSigningIn("google");
     setError(null);
     try {
       await loginWithGoogle(credential);
+      setSigningIn("redirecting");
       setEmail("");
       setPassword("");
       router.push("/");
     } catch (err) {
+      setSigningIn(null);
       setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
-    } finally {
-      setBusy(false);
     }
   };
 
+  const onGooglePopupClosed = () => {
+    setSigningIn((s) => s ?? "popup-closed");
+    // Closed without choosing an account: Google never calls back, so bring the form back.
+    setTimeout(() => setSigningIn((s) => (s === "popup-closed" ? null : s)), 4000);
+  };
+
   const capsCheck = (e: React.KeyboardEvent) => setCapsLock(e.getModifierState?.("CapsLock") ?? false);
+
+  if (signingIn) {
+    // A plain loading screen, deliberately unlike the login card.
+    return (
+      <div
+        className="fixed inset-0 z-50 grid place-items-center bg-background"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex flex-col items-center text-center">
+          <LogoMark size={64} className="block animate-pulse" />
+          <p className="mt-6 text-lg font-medium">Signing you in…</p>
+          <p className="mt-1 text-sm text-muted">Taking you to Cynatra.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (ready && user && !busy) {
     return (
@@ -147,6 +177,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
           resendAfterSeconds={pending.resendAfterSeconds}
           onVerify={async (code) => {
             await verifyEmail(pending.email, code);
+            setSigningIn("redirecting");
             setPending(null);
             setEmail("");
             router.push("/");
@@ -197,7 +228,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
       {googleClientId && (
         <div className="mt-6">
-          <GoogleSignIn clientId={googleClientId} onCredential={onGoogle} onError={setError} />
+          <GoogleSignIn
+            clientId={googleClientId}
+            onCredential={onGoogle}
+            onError={setError}
+            onPopupClosed={onGooglePopupClosed}
+          />
           <div className="mt-6 flex items-center gap-3 text-xs text-muted" role="separator">
             <span className="h-px flex-1 bg-border" />
             or continue with email
