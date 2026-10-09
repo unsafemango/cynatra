@@ -116,8 +116,12 @@ authRouter.post("/google", requireDb, async (req, res) => {
   }
 });
 
+// Profile fields: how the account signs in and when it was created.
+const ME_COLUMNS = `id, email, region, created_at AS "createdAt",
+  (password_hash IS NOT NULL) AS "hasPassword", (google_id IS NOT NULL) AS "hasGoogle"`;
+
 authRouter.get("/me", requireDb, requireAuth, async (req, res) => {
-  const { rows } = await pool!.query("SELECT id, email, region FROM users WHERE id = $1", [req.user!.id]);
+  const { rows } = await pool!.query(`SELECT ${ME_COLUMNS} FROM users WHERE id = $1`, [req.user!.id]);
   if (!rows[0]) {
     res.status(401).json({ error: "Account not found." });
     return;
@@ -132,7 +136,7 @@ authRouter.patch("/me", requireDb, requireAuth, async (req, res) => {
     return;
   }
   const { rows } = await pool!.query(
-    "UPDATE users SET region = $2 WHERE id = $1 RETURNING id, email, region",
+    `UPDATE users SET region = $2 WHERE id = $1 RETURNING ${ME_COLUMNS}`,
     [req.user!.id, parsed.data.region.toUpperCase()],
   );
   res.json({ user: rows[0] });

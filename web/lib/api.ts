@@ -41,7 +41,15 @@ export type Filters = {
   look?: "any" | "colorful";
 };
 
-export type User = { id: string; email: string; region: string };
+export type User = {
+  id: string;
+  email: string;
+  region: string;
+  // From /api/auth/me (absent right after logging in until the next refresh).
+  createdAt?: string;
+  hasPassword?: boolean;
+  hasGoogle?: boolean;
+};
 
 export class ApiError extends Error {
   constructor(
