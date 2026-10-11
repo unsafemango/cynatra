@@ -8,7 +8,10 @@ import { toSlug, type Person } from "@/lib/api";
 
 type Credit = Person["credits"][number];
 type Kind = "all" | "movie" | "tv";
-type Sort = "popular" | "newest";
+type Sort = "popular" | "newest" | "az";
+
+const SORT_LABEL: Record<Sort, string> = { popular: "Most popular", newest: "Newest", az: "A–Z" };
+const byTitle = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
 
 const FIRST = 10; // rows shown at first
 const MORE = 20; // rows added per "Show more"
@@ -26,8 +29,13 @@ export function Filmography({ credits }: { credits: Credit[] }) {
     tv: credits.filter((c) => c.mediaType === "tv").length,
   };
   const filtered = kind === "all" ? credits : credits.filter((c) => c.mediaType === kind);
-  // Credits arrive newest first (upcoming ones leading); Popular re-sorts by votes.
-  const sorted = sort === "popular" ? [...filtered].sort((a, b) => b.votes - a.votes) : filtered;
+  // Credits arrive newest first (upcoming ones leading); the other sorts reorder a copy.
+  const sorted =
+    sort === "popular"
+      ? [...filtered].sort((a, b) => b.votes - a.votes)
+      : sort === "az"
+        ? [...filtered].sort((a, b) => byTitle.compare(a.title, b.title))
+        : filtered;
   const shown = sorted.slice(0, limit);
   const hidden = sorted.length - shown.length;
 
@@ -53,7 +61,7 @@ export function Filmography({ credits }: { credits: Credit[] }) {
           role="group"
           aria-label="Sort by"
         >
-          {(["popular", "newest"] as const).map((s) => (
+          {(["popular", "newest", "az"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -63,7 +71,7 @@ export function Filmography({ credits }: { credits: Credit[] }) {
                 sort === s ? "bg-surface text-foreground shadow" : "text-muted hover:text-foreground"
               }`}
             >
-              {s === "popular" ? "Most popular" : "Newest"}
+              {SORT_LABEL[s]}
             </button>
           ))}
         </div>
@@ -88,7 +96,7 @@ export function Filmography({ credits }: { credits: Credit[] }) {
           // Newest: the year heads its group instead of repeating on every row.
           const year = c.year ? String(c.year) : "Soon";
           const prevYear = i > 0 ? (shown[i - 1].year ? String(shown[i - 1].year) : "Soon") : null;
-          const showYear = sort === "popular" || year !== prevYear;
+          const showYear = sort !== "newest" || year !== prevYear;
           return (
             <li key={c.id} className="flex items-center gap-3 py-2.5">
               <span className="w-11 shrink-0 text-sm tabular-nums text-muted" aria-hidden={!showYear}>
