@@ -1,0 +1,16 @@
+# Free HTTPS certificates from Let's Encrypt, proven over plain HTTP through
+# Traefik (needs port 80 open and DNS pointing at the server, proxy off).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Optional: add `email: you@example.com` for certificate expiry notices.
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

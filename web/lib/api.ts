@@ -1,3 +1,5 @@
+// Gateway origin. Empty (production builds) means the same domain as the page,
+// whose /api/* is routed to the gateway.
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 export type Kind = "movie" | "series" | "animation";

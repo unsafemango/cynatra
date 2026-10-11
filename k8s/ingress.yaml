@@ -1,0 +1,25 @@
+# One domain for everything: /api/* goes to the gateway, the rest to the web
+# app. cert-manager fetches the HTTPS certificate for both hostnames.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cynatra
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [cynatra.app, www.cynatra.app]
+      secretName: cynatra-tls
+  rules:
+    - host: cynatra.app
+      http: &routes
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 4000 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 3000 } } }
+    - host: www.cynatra.app
+      http: *routes

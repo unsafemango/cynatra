@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: picker
+spec:
+  selector: { app: picker }
+  ports: [{ port: 8081 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: picker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: picker }
+  template:
+    metadata:
+      labels: { app: picker }
+    spec:
+      containers:
+        - name: picker
+          image: cynatra-picker
+          imagePullPolicy: Always
+          env:
+            - { name: PORT, value: "8081" }
+            - { name: REDIS_URL, value: redis://redis:6379/0 }
+            - name: TMDB_API_KEY
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: TMDB_API_KEY } }
+          ports: [{ containerPort: 8081 }]
+          readinessProbe:
+            httpGet: { path: /health, port: 8081 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { memory: 256Mi }

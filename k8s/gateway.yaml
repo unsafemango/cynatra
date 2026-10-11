@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+spec:
+  selector: { app: gateway }
+  ports: [{ port: 4000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway }
+    spec:
+      # The gateway runs migrations on start, so wait for Postgres first.
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17-alpine
+          command: ["sh", "-c", "until pg_isready -h postgres -U cynatra; do sleep 2; done"]
+      containers:
+        - name: gateway
+          image: cynatra-gateway
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef: { name: cynatra-config }
+          env:
+            - { name: PORT, value: "4000" }
+            - { name: PICKER_URL, value: http://picker:8081 }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: POSTGRES_PASSWORD } }
+            - { name: DATABASE_URL, value: postgres://cynatra:$(POSTGRES_PASSWORD)@postgres:5432/cynatra }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: JWT_SECRET } }
+            - name: GOOGLE_CLIENT_ID
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: GOOGLE_CLIENT_ID, optional: true } }
+            - name: SMTP_HOST
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: SMTP_HOST, optional: true } }
+            - name: SMTP_PORT
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: SMTP_PORT, optional: true } }
+            - name: SMTP_USER
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: SMTP_USER, optional: true } }
+            - name: SMTP_PASS
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: SMTP_PASS, optional: true } }
+            - name: EMAIL_FROM
+              valueFrom: { secretKeyRef: { name: cynatra-secrets, key: EMAIL_FROM, optional: true } }
+          ports: [{ containerPort: 4000 }]
+          readinessProbe:
+            httpGet: { path: /health, port: 4000 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 384Mi }

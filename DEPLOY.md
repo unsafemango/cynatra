@@ -5,11 +5,10 @@ This guide puts the whole app (web, gateway, picker, Postgres, Redis) on a singl
 Kubernetes. Within Oracle's free limits it costs nothing; you only pay for a domain
 (about $10 a year).
 
-> **Status:** the guide is complete for setting up the server, domain, cluster and
-> secrets (steps 1–7). Steps marked 🚧 need files that aren't in the repo yet:
-> the Kubernetes manifests (`k8s/`), the GitHub Actions image build, and a small
-> change so the web app calls the API on the same domain. Do steps 1–7 now; the
-> rest becomes copy-paste once those files exist.
+> **Status:** everything except backups is in the repo: the Kubernetes manifests
+> (`k8s/`) and the GitHub Actions image build (`.github/workflows/images.yml`).
+> The manifests are set up for `cynatra.app`; for another domain, change it in
+> `k8s/ingress.yaml` and `k8s/kustomization.yaml`.
 
 ---
 
@@ -208,11 +207,9 @@ Then update two outside services:
   DNS records it gives you (SPF/DKIM). Then send from `no-reply@yourdomain.com`.
   Codes are far less likely to land in spam than when sent from a Gmail address.
 
-## 8. 🚧 Build the images
+## 8. Build the images
 
-*Needs the GitHub Actions workflow (not in the repo yet).*
-
-Once added, every push to `main` builds `web`, `gateway` and `picker` for ARM
+Every push to `main` builds `web`, `gateway` and `picker` for ARM
 and Intel and pushes them to `ghcr.io/unsafemango/cynatra-<service>`.
 After the first run, make each package public: *GitHub → your profile →
 Packages → package → Settings → Change visibility → Public*. Then the cluster can
@@ -221,12 +218,18 @@ pull them without credentials.
 The web image is built for the **same domain** (`/api` instead of
 `http://localhost:4000`), so one image works on any domain.
 
-## 9. 🚧 Deploy
+The first build starts when this workflow reaches `main`. You can rerun it any
+time from the repo's *Actions* tab → **Images** → **Run workflow**. The first
+run takes 10–20 minutes because ARM images are built under emulation; later runs
+are cached.
 
-*Needs the `k8s/` manifests (not in the repo yet).*
+## 9. Deploy
 
-Once added, set your domain in one place (`k8s/kustomization.yaml`) and run on
-the server:
+Get the manifests onto the server (the repo is public) and apply them:
+
+```bash
+git clone https://github.com/unsafemango/cynatra.git && cd cynatra
+```
 
 ```bash
 kubectl apply -k k8s/
@@ -239,7 +242,7 @@ kubectl -n cynatra get pods
 When every pod is `Running`, open **https://yourdomain.com**. The first HTTPS
 certificate can take a minute.
 
-## 10. 🚧 Updating later
+## 10. Updating later
 
 Push to `main` → GitHub Actions builds new images → on the server:
 
@@ -247,11 +250,14 @@ Push to `main` → GitHub Actions builds new images → on the server:
 kubectl -n cynatra rollout restart deploy
 ```
 
+If the manifests changed too, `git pull` in `~/cynatra` and run
+`kubectl apply -k k8s/` again first.
+
 ## 11. Backups (recommended)
 
 Your accounts, watchlists and history live in Postgres on the server's disk.
 A nightly dump to Oracle's free **Object Storage** (20 GB free) protects them.
-The manifests will include an optional backup job.
+A backup job isn't in the manifests yet.
 
 ---
 
