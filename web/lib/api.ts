@@ -16,8 +16,12 @@ export type Title = {
   overview: string;
   posterUrl?: string;
   backdropUrl?: string;
+  /** TMDB user score, 0–10. */
   rating: number;
   voteCount: number;
+  imdbId?: string;
+  /** IMDb's rating; missing when IMDb has none (and on titles saved before it was added). */
+  imdb?: { rating: number; votes: number };
   year?: number;
   runtime?: number;
   seasons?: number;

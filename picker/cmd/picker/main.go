@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/cynatra/picker/internal/cache"
+	"github.com/cynatra/picker/internal/imdb"
 	"github.com/cynatra/picker/internal/look"
 	"github.com/cynatra/picker/internal/picker"
 	"github.com/cynatra/picker/internal/tmdb"
@@ -33,7 +34,10 @@ func main() {
 	c, kind := cache.New(ctx, os.Getenv("REDIS_URL"))
 	log.Printf("cache: %s", kind)
 
-	p := picker.New(tmdb.NewClient(key, c), look.NewScorer(c))
+	// IMDb ratings load in the background; until then TMDB's score stands in.
+	ratings := &imdb.Ratings{}
+	go ratings.Keep(ctx, envOr("IMDB_RATINGS_URL", imdb.DatasetURL), 24*time.Hour)
+	p := picker.New(tmdb.NewClient(key, c), look.NewScorer(c), ratings)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
@@ -108,6 +112,16 @@ func main() {
 			return
 		}
 		writeJSON(w, http.StatusOK, a)
+	})
+	mux.HandleFunc("POST /ratings", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs []string `json:"ids"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&req); err != nil || len(req.IDs) > picker.MaxRatingsLookup {
+			writeError(w, http.StatusBadRequest, "invalid ids")
+			return
+		}
+		writeJSON(w, http.StatusOK, p.IMDbRatings(r.Context(), req.IDs))
 	})
 	mux.HandleFunc("GET /search", func(w http.ResponseWriter, r *http.Request) {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))

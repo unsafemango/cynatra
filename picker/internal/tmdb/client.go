@@ -94,6 +94,9 @@ type Details struct {
 	WatchProviders struct {
 		Results map[string]RegionProviders `json:"results"`
 	} `json:"watch/providers"`
+	ExternalIDs struct {
+		IMDbID string `json:"imdb_id"` // e.g. tt0133093, for the IMDb rating
+	} `json:"external_ids"`
 }
 
 type Named struct {
@@ -195,9 +198,6 @@ type FullDetails struct {
 	Recommendations struct {
 		Results []SearchResult `json:"results"`
 	} `json:"recommendations"`
-	ExternalIDs struct {
-		IMDbID string `json:"imdb_id"`
-	} `json:"external_ids"`
 }
 
 // PersonCredit is one movie or series in a person's combined credits.
@@ -281,9 +281,9 @@ func (c *Client) SearchMulti(ctx context.Context, query string) ([]SearchResult,
 	return page.Results, nil
 }
 
-// Details fetches a title with videos and watch providers appended.
+// Details fetches a title with videos, watch providers and external IDs appended.
 func (c *Client) Details(ctx context.Context, media string, id int) (*Details, error) {
-	q := url.Values{"append_to_response": {"videos,watch/providers"}}
+	q := url.Values{"append_to_response": {"videos,watch/providers,external_ids"}}
 	var d Details
 	if err := c.get(ctx, fmt.Sprintf("/%s/%d", media, id), q, detailsTTL, &d); err != nil {
 		return nil, err

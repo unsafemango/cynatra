@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RatingSourcePicker } from "@/components/RatingSourcePicker";
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { CheckIcon, ListIcon, PlayIcon, EyeCheckIcon, Spinner } from "@/components/icons";
 import { LogoMark } from "@/components/Logo";
@@ -184,6 +185,22 @@ export default function ProfilePage() {
             )}
             {save.kind === "error" && <span className="text-accent">{save.message}</span>}
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
+        <SectionTitle
+          title="Ratings"
+          hint="Which score to show on titles. Spins' minimum rating always uses IMDb. Saved in this browser."
+        />
+        <div className="mt-5">
+          <label className="sr-only" htmlFor="profile-rating">
+            Ratings from
+          </label>
+          <RatingSourcePicker
+            id="profile-rating"
+            className="w-full sm:max-w-xs rounded-xl bg-background/60 px-3.5 py-3"
+          />
         </div>
       </section>
 

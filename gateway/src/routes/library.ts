@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, requireDb } from "../auth.js";
 import { pool } from "../db/index.js";
-import { callPicker } from "../picker.js";
+import { callPicker, refreshIMDb } from "../picker.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
 export const libraryRouter = Router();
@@ -30,6 +30,7 @@ async function sendPage(
     pool!.query<{ n: number }>(countSql, params),
     pool!.query(listSql, [...params, pageSize, (page - 1) * pageSize]),
   ]);
+  await refreshIMDb(items.map((item) => item.title));
   res.json({ items, total: count[0].n, page, pageSize });
 }
 
@@ -94,6 +95,7 @@ libraryRouter.post("/watchlist/pick", async (req, res) => {
     [userId, parsed.data.excludeIds],
   );
   if (rows[0]) {
+    await refreshIMDb([rows[0].title]);
     await pool!.query("INSERT INTO history (user_id, title_id, title) VALUES ($1, $2, $3)", [
       userId,
       rows[0].title_id,

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cynatra/picker/internal/imdb"
 	"github.com/cynatra/picker/internal/look"
 	"github.com/cynatra/picker/internal/tmdb"
 )
@@ -56,8 +57,10 @@ type Title struct {
 	Overview     string        `json:"overview"`
 	PosterURL    string        `json:"posterUrl,omitempty"`
 	BackdropURL  string        `json:"backdropUrl,omitempty"`
-	Rating       float64       `json:"rating"`
-	VoteCount    int           `json:"voteCount"`
+	Rating       float64       `json:"rating"`    // TMDB user score, 0–10
+	VoteCount    int           `json:"voteCount"` // TMDB votes
+	IMDbID       string        `json:"imdbId,omitempty"`
+	IMDb         *imdb.Score   `json:"imdb,omitempty"` // missing when IMDb has no rating for it
 	Year         int           `json:"year,omitempty"`
 	Runtime      int           `json:"runtime,omitempty"` // minutes (per episode for series)
 	Seasons      int           `json:"seasons,omitempty"`
@@ -70,11 +73,49 @@ type Title struct {
 }
 
 type Picker struct {
-	tmdb  *tmdb.Client
-	looks *look.Scorer
+	tmdb    *tmdb.Client
+	looks   *look.Scorer
+	ratings *imdb.Ratings
 }
 
-func New(c *tmdb.Client, looks *look.Scorer) *Picker { return &Picker{tmdb: c, looks: looks} }
+func New(c *tmdb.Client, looks *look.Scorer, ratings *imdb.Ratings) *Picker {
+	return &Picker{tmdb: c, looks: looks, ratings: ratings}
+}
+
+// The minimum rating is an IMDb rating. TMDB's discover can only filter by its
+// own score, so it's asked for titles up to this much below the minimum, and
+// each pick is then checked against IMDb.
+const imdbSlack = 1.0
+
+// Titles checked against the IMDb minimum: at most this many per page, and in
+// total per kind of title, so a very high minimum can't make a spin crawl.
+const (
+	maxChecksPerPage = 6
+	maxChecks        = 30
+)
+
+// imdbMinimum reports whether the minimum rating is checked against IMDb.
+func (p *Picker) imdbMinimum(r Request) bool {
+	return r.MinRating > 0 && p.ratings != nil && p.ratings.Loaded()
+}
+
+// meetsMinimum checks a title's IMDb rating, or TMDB's when IMDb has none.
+func meetsMinimum(t *Title, min float64) bool {
+	if t.IMDb != nil {
+		return t.IMDb.Rating >= min
+	}
+	return t.Rating >= min
+}
+
+// addIMDb fills in the IMDb rating, when the dataset has one for the title.
+func (p *Picker) addIMDb(t *Title) {
+	if p.ratings == nil || t.IMDbID == "" {
+		return
+	}
+	if s, ok := p.ratings.Lookup(t.IMDbID); ok {
+		t.IMDb = &s
+	}
+}
 
 // With the look filter on, each page costs image downloads (cached afterwards),
 // so only this many pages are searched before giving up.
@@ -147,7 +188,11 @@ func (p *Picker) Pick(ctx context.Context, r Request) (*Title, error) {
 }
 
 func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded map[string]bool) (*Title, error) {
-	q, ok := buildQuery(a, r)
+	discover := r
+	if p.imdbMinimum(r) {
+		discover.MinRating = max(0, r.MinRating-imdbSlack)
+	}
+	q, ok := buildQuery(a, discover)
 	if !ok {
 		return nil, ErrNoMatch
 	}
@@ -167,6 +212,7 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 
 	// Sample a few random pages; fall back to scanning in order if the user
 	// has excluded most of a small result set.
+	checks := 0
 	tried := map[int]bool{}
 	for i := 0; i < 5 && len(tried) < budget; i++ {
 		n := rand.IntN(pages) + 1
@@ -174,7 +220,7 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 			continue
 		}
 		tried[n] = true
-		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded); err != nil || ok {
+		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded, &checks); err != nil || ok {
 			return t, err
 		}
 	}
@@ -183,31 +229,48 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 			continue
 		}
 		tried[n] = true
-		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded); err != nil || ok {
+		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded, &checks); err != nil || ok {
 			return t, err
 		}
 	}
 	return nil, ErrNoMatch
 }
 
-func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool) (*Title, bool, error) {
-	res, ok, err := p.randomFromPage(ctx, a.media, q, n, first, excluded, r.Look == "colorful")
-	if err != nil || !ok {
+func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, checks *int) (*Title, bool, error) {
+	candidates, err := p.candidatesFromPage(ctx, a.media, q, n, first, excluded, r.Look == "colorful")
+	if err != nil {
 		return nil, false, err
 	}
-	t, err := p.details(ctx, a, res.ID, r.Region)
-	if t != nil && r.Look == "colorful" {
-		t.Colorful = true
+	checkIMDb := p.imdbMinimum(r)
+	for i, res := range candidates {
+		if i == maxChecksPerPage {
+			break
+		}
+		t, err := p.details(ctx, a, res.ID, r.Region)
+		if err != nil {
+			return nil, false, err
+		}
+		if checkIMDb && !meetsMinimum(t, r.MinRating) {
+			if *checks++; *checks >= maxChecks {
+				return nil, false, ErrNoMatch
+			}
+			continue
+		}
+		if r.Look == "colorful" {
+			t.Colorful = true
+		}
+		return t, true, nil
 	}
-	return t, err == nil, err
+	return nil, false, nil
 }
 
-func (p *Picker) randomFromPage(ctx context.Context, media string, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, colorful bool) (tmdb.DiscoverResult, bool, error) {
+// candidatesFromPage returns the page's titles that aren't excluded, shuffled.
+func (p *Picker) candidatesFromPage(ctx context.Context, media string, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, colorful bool) ([]tmdb.DiscoverResult, error) {
 	page := first
 	if n != 1 {
 		var err error
 		if page, err = p.tmdb.Discover(ctx, media, withPage(q, n)); err != nil {
-			return tmdb.DiscoverResult{}, false, err
+			return nil, err
 		}
 	}
 	var candidates []tmdb.DiscoverResult
@@ -219,10 +282,8 @@ func (p *Picker) randomFromPage(ctx context.Context, media string, q url.Values,
 	if colorful {
 		candidates = p.brightAndColorful(ctx, candidates)
 	}
-	if len(candidates) == 0 {
-		return tmdb.DiscoverResult{}, false, nil
-	}
-	return candidates[rand.IntN(len(candidates))], true, nil
+	rand.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
+	return candidates, nil
 }
 
 // brightAndColorful keeps the candidates whose backdrop and poster look vivid.
@@ -365,7 +426,9 @@ func (p *Picker) details(ctx context.Context, a attempt, id int, region string) 
 	if err != nil {
 		return nil, err
 	}
-	return toTitle(a, d, region), nil
+	t := toTitle(a, d, region)
+	p.addIMDb(t)
+	return t, nil
 }
 
 func toTitle(a attempt, d *tmdb.Details, region string) *Title {
@@ -382,6 +445,7 @@ func toTitle(a attempt, d *tmdb.Details, region string) *Title {
 		Seasons:   d.NumberOfSeasons,
 		Genres:    []string{},
 		TMDBURL:   fmt.Sprintf("https://www.themoviedb.org/%s/%d", a.media, d.ID),
+		IMDbID:    d.ExternalIDs.IMDbID,
 	}
 	date := d.ReleaseDate
 	if a.media == "tv" {

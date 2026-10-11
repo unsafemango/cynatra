@@ -1,6 +1,10 @@
 package picker
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/cynatra/picker/internal/imdb"
+)
 
 func TestBuildQueryMovieGenresAreORed(t *testing.T) {
 	q, ok := buildQuery(attempt{"movie", "movie"}, Request{Genres: []string{"comedy", "horror"}, MinRating: 7})
@@ -86,5 +90,29 @@ func TestColorfulLookExcludesDarkGenresUnlessChosen(t *testing.T) {
 	q, _ = buildQuery(attempt{"movie", "movie"}, Request{Look: "any"})
 	if got := q.Get("without_genres"); got != "16" {
 		t.Errorf("any look: without_genres = %q", got)
+	}
+}
+
+func TestMeetsMinimumPrefersIMDb(t *testing.T) {
+	imdbLow := &Title{Rating: 8.1, IMDb: &imdb.Score{Rating: 6.9, Votes: 5000}}
+	if meetsMinimum(imdbLow, 7) {
+		t.Error("IMDb 6.9 should fail a 7.0 minimum even though TMDB says 8.1")
+	}
+	imdbHigh := &Title{Rating: 6.5, IMDb: &imdb.Score{Rating: 7.4, Votes: 5000}}
+	if !meetsMinimum(imdbHigh, 7) {
+		t.Error("IMDb 7.4 should pass a 7.0 minimum")
+	}
+	if !meetsMinimum(&Title{Rating: 7.2}, 7) || meetsMinimum(&Title{Rating: 6.2}, 7) {
+		t.Error("without an IMDb rating, TMDB's should decide")
+	}
+}
+
+func TestIMDbMinimumNeedsLoadedRatings(t *testing.T) {
+	p := &Picker{ratings: &imdb.Ratings{}}
+	if p.imdbMinimum(Request{MinRating: 7}) {
+		t.Error("ratings not loaded yet: TMDB's filter should apply as before")
+	}
+	if (&Picker{}).imdbMinimum(Request{MinRating: 7}) {
+		t.Error("no ratings at all")
 	}
 }

@@ -118,7 +118,10 @@ export function FilterPanel({
         <YearFilter filters={filters} onChange={set} />
       </Section>
 
-      <Section label="Minimum rating" hint={filters.minRating ? `${filters.minRating.toFixed(1)}+ ★` : "Any rating"}>
+      <Section
+        label="Minimum IMDb rating"
+        hint={filters.minRating ? `${filters.minRating.toFixed(1)}+ on IMDb` : "Any rating"}
+      >
         <input
           type="range"
           min={0}
@@ -127,7 +130,7 @@ export function FilterPanel({
           value={filters.minRating}
           onChange={(e) => set({ minRating: Number(e.target.value) })}
           className="w-full accent-[var(--accent)]"
-          aria-label="Minimum rating"
+          aria-label="Minimum IMDb rating"
         />
         <div className="flex justify-between text-xs text-muted mt-1">
           <span>Any</span>

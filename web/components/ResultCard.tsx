@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
 import { formatRuntime, toSlug, type Provider, type Title } from "@/lib/api";
+import { Rating } from "./Rating";
 
 const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
 
@@ -95,9 +96,8 @@ export function ResultCard({
             </Link>
           </h2>
 
-          <div className="mt-2 flex items-center gap-3 text-sm">
-            <span className="font-semibold text-accent-2">★ {t.rating.toFixed(1)}</span>
-            <span className="text-muted">{t.voteCount.toLocaleString()} votes</span>
+          <div className="mt-2">
+            <Rating title={t} />
           </div>
 
           {t.genres.length > 0 && <p className="mt-2 text-sm text-muted">{t.genres.join(" · ")}</p>}

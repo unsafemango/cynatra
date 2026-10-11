@@ -5,7 +5,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/cynatra/picker/internal/imdb"
 	"github.com/cynatra/picker/internal/tmdb"
 )
 
@@ -95,6 +97,7 @@ func (p *Picker) Full(ctx context.Context, media string, id int, region string) 
 	}
 	t := toTitle(attempt{kind, media}, &d.Details, region)
 	markAnimation(t)
+	p.addIMDb(t)
 	return &FullTitle{Title: t, Details: toTitleDetails(media, d, region)}, nil
 }
 
@@ -280,4 +283,46 @@ func year(date string) int {
 	}
 	y, _ := strconv.Atoi(date[:4])
 	return y
+}
+
+// IMDbRating is a title's IMDb ID and current rating, for refreshing saved titles.
+type IMDbRating struct {
+	IMDbID string      `json:"imdbId,omitempty"`
+	IMDb   *imdb.Score `json:"imdb,omitempty"`
+}
+
+// MaxRatingsLookup caps how many titles one IMDbRatings call covers.
+const MaxRatingsLookup = 50
+
+// IMDbRatings looks up the current IMDb ratings of saved titles ("movie:603").
+// Titles that can't be looked up are left out.
+func (p *Picker) IMDbRatings(ctx context.Context, ids []string) map[string]IMDbRating {
+	out := make(map[string]IMDbRating, len(ids))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 8)
+	for _, id := range ids {
+		media, num, ok := strings.Cut(id, ":")
+		n, err := strconv.Atoi(num)
+		if !ok || (media != "movie" && media != "tv") || err != nil || n <= 0 {
+			continue
+		}
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			kind := "movie"
+			if media == "tv" {
+				kind = "series"
+			}
+			t, err := p.details(ctx, attempt{kind, media}, n, "US")
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			out[id] = IMDbRating{IMDbID: t.IMDbID, IMDb: t.IMDb}
+			mu.Unlock()
+		})
+	}
+	wg.Wait()
+	return out
 }

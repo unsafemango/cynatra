@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Pagination } from "@/components/Pagination";
+import { useRatingText } from "@/components/Rating";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
@@ -41,6 +42,7 @@ const dateLabel = (item: Item) => {
 
 export default function LibraryPage() {
   const { user, ready } = useAuth();
+  const ratingText = useRatingText();
   const [tab, setTab] = useState<Tab>("watchlist");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<PageData | null>(null);
@@ -297,7 +299,7 @@ export default function LibraryPage() {
                       {item.title.title}
                     </Link>
                     <p className="text-xs text-muted mt-1">
-                      {[item.title.year, `★ ${item.title.rating.toFixed(1)}`, formatRuntime(item.title)]
+                      {[item.title.year, ratingText(item.title), formatRuntime(item.title)]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
