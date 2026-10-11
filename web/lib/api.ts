@@ -93,7 +93,7 @@ export type Person = {
   tmdbUrl: string;
   knownForTitles: SearchHit[];
   /** Every movie and series, newest first; undated (upcoming) ones lead. */
-  credits: (SearchHit & { roles: string[]; episodes?: number })[];
+  credits: (SearchHit & { roles: string[]; episodes?: number; /** TMDB vote count */ votes: number })[];
 };
 
 export type Genre = { slug: string; label: string };

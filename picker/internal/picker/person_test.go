@@ -53,6 +53,9 @@ func TestToPerson(t *testing.T) {
 	if !slices.Equal(matrix.Roles, []string{"Neo", "Stunts"}) {
 		t.Errorf("matrix roles = %v", matrix.Roles)
 	}
+	if matrix.Votes != 25000 {
+		t.Errorf("votes = %d", matrix.Votes)
+	}
 	if p.Credits[1].Episodes != 2 {
 		t.Errorf("episodes = %d", p.Credits[1].Episodes)
 	}

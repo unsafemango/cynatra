@@ -35,6 +35,7 @@ type PersonCredit struct {
 	SearchHit
 	Roles    []string `json:"roles"`              // characters played and/or crew jobs
 	Episodes int      `json:"episodes,omitempty"` // series they appeared in
+	Votes    int      `json:"votes"`              // TMDB vote count, for sorting by popularity
 }
 
 const (
@@ -84,7 +85,6 @@ func toPerson(d *tmdb.Person) *Person {
 
 	// One entry per title, collecting every role (an actor-director gets both).
 	byID := map[string]*PersonCredit{}
-	votes := map[string]int{}
 	var order []string
 	add := func(c tmdb.PersonCredit, role string, cast bool) {
 		if c.MediaType == "tv" && slices.ContainsFunc(c.GenreIDs, func(g int) bool { return slices.Contains(appearanceGenres, g) }) {
@@ -96,9 +96,8 @@ func toPerson(d *tmdb.Person) *Person {
 		}
 		pc := byID[h.ID]
 		if pc == nil {
-			pc = &PersonCredit{SearchHit: h, Roles: []string{}}
+			pc = &PersonCredit{SearchHit: h, Roles: []string{}, Votes: c.VoteCount}
 			byID[h.ID] = pc
-			votes[h.ID] = c.VoteCount
 			order = append(order, h.ID)
 		}
 		if role != "" && !slices.Contains(pc.Roles, role) {
@@ -142,7 +141,7 @@ func toPerson(d *tmdb.Person) *Person {
 		}
 	}
 	known := slices.Clone(order)
-	slices.SortStableFunc(known, func(a, b string) int { return cmp.Compare(votes[b], votes[a]) })
+	slices.SortStableFunc(known, func(a, b string) int { return cmp.Compare(byID[b].Votes, byID[a].Votes) })
 	out.KnownForTitles = []SearchHit{}
 	for _, id := range known {
 		if c := byID[id]; main[id] && c.PosterURL != "" {
