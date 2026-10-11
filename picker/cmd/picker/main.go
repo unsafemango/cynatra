@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -93,6 +95,20 @@ func main() {
 			writeJSON(w, http.StatusOK, person)
 		}
 	})
+	mux.HandleFunc("GET /episodes", func(w http.ResponseWriter, r *http.Request) {
+		ids := strings.Split(r.URL.Query().Get("credits"), ",")
+		if len(ids) > picker.MaxCreditsPerLookup || slices.ContainsFunc(ids, func(id string) bool { return !creditID.MatchString(id) }) {
+			writeError(w, http.StatusBadRequest, "invalid credits")
+			return
+		}
+		a, err := p.Episodes(r.Context(), ids)
+		if err != nil {
+			log.Printf("episodes: %v", err)
+			writeError(w, http.StatusBadGateway, "Couldn't reach the movie database. Try again.")
+			return
+		}
+		writeJSON(w, http.StatusOK, a)
+	})
 	mux.HandleFunc("GET /search", func(w http.ResponseWriter, r *http.Request) {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))
 		if q == "" || len(q) > 100 {
@@ -151,6 +167,9 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
 }
+
+// TMDB credit IDs are 24 hex characters.
+var creditID = regexp.MustCompile(`^[0-9a-f]{24}$`)
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")

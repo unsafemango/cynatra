@@ -53,6 +53,17 @@ const getTitle = (full: boolean) => async (req: Request<{ media: string; id: str
 pickRouter.get("/title/:media/:id", getTitle(false));
 pickRouter.get("/title/:media/:id/full", getTitle(true));
 
+// Which episodes or seasons of a series a person's credits cover (TMDB credit IDs, up to 5).
+pickRouter.get("/episodes", async (req, res) => {
+  const credits = String(req.query.credits ?? "");
+  if (!/^[0-9a-f]{24}(,[0-9a-f]{24}){0,4}$/.test(credits)) {
+    res.status(400).json({ error: "Invalid credits" });
+    return;
+  }
+  const { status, body } = await callPicker(`/episodes?credits=${credits}`);
+  res.status(status).json(body);
+});
+
 // An actor or crew member with their filmography.
 pickRouter.get("/person/:id", async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) {

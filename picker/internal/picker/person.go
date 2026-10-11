@@ -36,6 +36,8 @@ type PersonCredit struct {
 	Roles    []string `json:"roles"`              // characters played and/or crew jobs
 	Episodes int      `json:"episodes,omitempty"` // series they appeared in
 	Votes    int      `json:"votes"`              // TMDB vote count, for sorting by popularity
+	// Series only: TMDB credit IDs, for looking up which episodes or seasons (see Episodes).
+	CreditIDs []string `json:"creditIds,omitempty"`
 }
 
 const (
@@ -105,6 +107,9 @@ func toPerson(d *tmdb.Person) *Person {
 		}
 		if cast {
 			pc.Episodes += c.EpisodeCount
+		}
+		if c.MediaType == "tv" && c.CreditID != "" && !slices.Contains(pc.CreditIDs, c.CreditID) {
+			pc.CreditIDs = append(pc.CreditIDs, c.CreditID)
 		}
 	}
 	for _, c := range d.CombinedCredits.Cast {

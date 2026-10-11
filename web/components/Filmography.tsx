@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Chip } from "@/components/Chip";
-import { toSlug, type Person } from "@/lib/api";
+import { api, toSlug, type Appearance, type Person } from "@/lib/api";
 
 type Credit = Person["credits"][number];
 type Kind = "all" | "movie" | "tv";
@@ -113,6 +113,7 @@ export function Filmography({ credits }: { credits: Credit[] }) {
                   {c.title}
                 </Link>
                 <p className="truncate text-xs text-muted">{describe(c)}</p>
+                {c.creditIds && c.creditIds.length > 0 && <EpisodeLine creditIds={c.creditIds} />}
               </div>
             </li>
           );
@@ -149,6 +150,55 @@ export function Filmography({ credits }: { credits: Credit[] }) {
       )}
     </section>
   );
+}
+
+// One request per series row, shared across re-renders, sorting and "Show more".
+const appearances = new Map<string, Promise<Appearance | null>>();
+
+function loadAppearance(creditIds: string[]) {
+  const key = creditIds.slice(0, 5).join(",");
+  let p = appearances.get(key);
+  if (!p) {
+    p = api<Appearance>(`/api/episodes?credits=${key}`).catch(() => null);
+    appearances.set(key, p);
+  }
+  return p;
+}
+
+/** Which episodes or seasons, e.g. "S36 E1 · Bart's Birthday" or "Seasons 1–3". */
+function EpisodeLine({ creditIds }: { creditIds: string[] }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadAppearance(creditIds).then((a) => live && setText(a && describeAppearance(a)));
+    return () => {
+      live = false;
+    };
+  }, [creditIds]);
+  return text ? <p className="truncate text-xs text-muted/80">{text}</p> : null;
+}
+
+const MAX_LISTED_EPISODES = 3;
+
+function describeAppearance({ episodes, seasons }: Appearance): string | null {
+  const code = (e: Appearance["episodes"][number]) => `S${e.season} E${e.number}`;
+  if (episodes.length === 1) {
+    const e = episodes[0];
+    return e.name ? `${code(e)} · ${e.name}` : code(e);
+  }
+  if (episodes.length > 1 && episodes.length <= MAX_LISTED_EPISODES) return episodes.map(code).join(", ");
+  return seasons.length > 0 ? seasonRanges(seasons) : null;
+}
+
+/** [1, 2, 3, 5] → "Seasons 1–3, 5"; [4] → "Season 4". */
+function seasonRanges(seasons: number[]) {
+  const parts: string[] = [];
+  for (let i = 0; i < seasons.length; i++) {
+    const start = seasons[i];
+    while (seasons[i + 1] === seasons[i] + 1) i++;
+    parts.push(start === seasons[i] ? `${start}` : `${start}–${seasons[i]}`);
+  }
+  return `${seasons.length === 1 ? "Season" : "Seasons"} ${parts.join(", ")}`;
 }
 
 /** "Series — Neo · Producer — 12 episodes" */

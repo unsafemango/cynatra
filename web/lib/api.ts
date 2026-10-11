@@ -96,7 +96,20 @@ export type Person = {
   tmdbUrl: string;
   knownForTitles: SearchHit[];
   /** Every movie and series, newest first; undated (upcoming) ones lead. */
-  credits: (SearchHit & { roles: string[]; episodes?: number; /** TMDB vote count */ votes: number })[];
+  credits: (SearchHit & {
+    roles: string[];
+    episodes?: number;
+    /** TMDB vote count */
+    votes: number;
+    /** Series only: for GET /api/episodes. */
+    creditIds?: string[];
+  })[];
+};
+
+/** Which episodes (guest roles) or seasons (regular roles) a person's series credits cover. */
+export type Appearance = {
+  episodes: { season: number; number: number; name?: string; airDate?: string }[];
+  seasons: number[];
 };
 
 export type Genre = { slug: string; label: string };

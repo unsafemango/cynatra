@@ -206,6 +206,23 @@ type PersonCredit struct {
 	Character    string `json:"character"`     // cast
 	Job          string `json:"job"`           // crew
 	EpisodeCount int    `json:"episode_count"` // series
+	CreditID     string `json:"credit_id"`
+}
+
+// Credit is one credit with the episodes or seasons it covers (series only):
+// guest roles list their episodes, regular roles their seasons.
+type Credit struct {
+	Media struct {
+		Episodes []struct {
+			SeasonNumber  int    `json:"season_number"`
+			EpisodeNumber int    `json:"episode_number"`
+			Name          string `json:"name"`
+			AirDate       string `json:"air_date"`
+		} `json:"episodes"`
+		Seasons []struct {
+			SeasonNumber int `json:"season_number"`
+		} `json:"seasons"`
+	} `json:"media"`
 }
 
 type Person struct {
@@ -297,6 +314,15 @@ func (c *Client) Person(ctx context.Context, id int) (*Person, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// Credit fetches a single credit by its ID (from a person's credits).
+func (c *Client) Credit(ctx context.Context, id string) (*Credit, error) {
+	var cr Credit
+	if err := c.get(ctx, "/credit/"+url.PathEscape(id), url.Values{}, detailsTTL, &cr); err != nil {
+		return nil, err
+	}
+	return &cr, nil
 }
 
 func (c *Client) get(ctx context.Context, path string, q url.Values, ttl time.Duration, out any) error {
