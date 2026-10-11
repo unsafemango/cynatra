@@ -28,11 +28,11 @@ func TestTitleDetailsMovie(t *testing.T) {
 		"credits": {
 			"cast": [{"name": "Keanu Reeves", "character": "Neo", "profile_path": "/k.jpg"}],
 			"crew": [
-				{"name": "Lana Wachowski", "job": "Director"},
-				{"name": "Lilly Wachowski", "job": "Director"},
-				{"name": "Lana Wachowski", "job": "Writer"},
-				{"name": "Don Davis", "job": "Original Music Composer"},
-				{"name": "Someone", "job": "Catering"}
+				{"id": 9339, "name": "Lana Wachowski", "job": "Director"},
+				{"id": 9340, "name": "Lilly Wachowski", "job": "Director"},
+				{"id": 9339, "name": "Lana Wachowski", "job": "Writer"},
+				{"id": 1, "name": "Don Davis", "job": "Original Music Composer"},
+				{"id": 2, "name": "Someone", "job": "Catering"}
 			]
 		},
 		"release_dates": {"results": [
@@ -61,9 +61,9 @@ func TestTitleDetailsMovie(t *testing.T) {
 		t.Errorf("imdb = %q", td.IMDbURL)
 	}
 	want := []CrewGroup{
-		{Job: "Director", People: []string{"Lana Wachowski", "Lilly Wachowski"}},
-		{Job: "Writer", People: []string{"Lana Wachowski"}},
-		{Job: "Original Music Composer", People: []string{"Don Davis"}},
+		{Job: "Director", People: []PersonRef{{9339, "Lana Wachowski"}, {9340, "Lilly Wachowski"}}},
+		{Job: "Writer", People: []PersonRef{{9339, "Lana Wachowski"}}},
+		{Job: "Original Music Composer", People: []PersonRef{{1, "Don Davis"}}},
 	}
 	if len(td.Crew) != len(want) {
 		t.Fatalf("crew = %+v", td.Crew)
@@ -86,14 +86,14 @@ func TestTitleDetailsSeries(t *testing.T) {
 		"id": 1396, "name": "Breaking Bad", "original_name": "Breaking Bad", "original_language": "en",
 		"first_air_date": "2008-01-20", "last_air_date": "2013-09-29", "number_of_episodes": 62,
 		"networks": [{"name": "AMC", "logo_path": "/amc.png"}],
-		"created_by": [{"name": "Vince Gilligan"}],
+		"created_by": [{"id": 66633, "name": "Vince Gilligan"}],
 		"seasons": [
 			{"season_number": 0, "name": "Specials", "episode_count": 9},
 			{"season_number": 1, "name": "Season 1", "episode_count": 7, "air_date": "2008-01-20"}
 		],
 		"aggregate_credits": {
 			"cast": [{"name": "Bryan Cranston", "roles": [{"character": "Walter White"}], "total_episode_count": 62}],
-			"crew": [{"name": "Vince Gilligan", "jobs": [{"job": "Executive Producer"}, {"job": "Writer"}]}]
+			"crew": [{"id": 66633, "name": "Vince Gilligan", "jobs": [{"job": "Executive Producer"}, {"job": "Writer"}]}]
 		},
 		"content_ratings": {"results": [{"iso_3166_1": "US", "rating": "TV-MA"}]},
 		"keywords": {"results": [{"name": "drug dealer"}]}
@@ -115,7 +115,7 @@ func TestTitleDetailsSeries(t *testing.T) {
 	if len(td.Crew) != 2 || td.Crew[0].Job != "Writer" || td.Crew[1].Job != "Executive Producer" {
 		t.Errorf("crew = %+v", td.Crew)
 	}
-	if !slices.Equal(td.Keywords, []string{"drug dealer"}) || !slices.Equal(td.CreatedBy, []string{"Vince Gilligan"}) {
+	if !slices.Equal(td.Keywords, []string{"drug dealer"}) || !slices.Equal(td.CreatedBy, []PersonRef{{66633, "Vince Gilligan"}}) {
 		t.Errorf("keywords/createdBy: %+v", td)
 	}
 	if len(td.Networks) != 1 || td.Networks[0].Logo == "" {

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { BackButton } from "@/components/BackButton";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { AuthProvider } from "@/lib/auth";
 import { ShortlistProvider } from "@/lib/shortlist";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {children}
             </main>
             <Footer />
+            <ScrollToTop />
           </ShortlistProvider>
         </AuthProvider>
       </body>

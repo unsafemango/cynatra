@@ -132,6 +132,7 @@ type CastMember struct {
 
 // CrewMember covers /credits (Job) and TV /aggregate_credits (Jobs).
 type CrewMember struct {
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 	Job  string `json:"job"`
 	Jobs []struct {
@@ -164,8 +165,11 @@ type FullDetails struct {
 	LastAirDate      string    `json:"last_air_date"`
 	NumberOfEpisodes int       `json:"number_of_episodes"`
 	Networks         []Network `json:"networks"`
-	CreatedBy        []Named   `json:"created_by"`
-	Seasons          []Season  `json:"seasons"`
+	CreatedBy        []struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	} `json:"created_by"`
+	Seasons []Season `json:"seasons"`
 
 	Credits          Credits `json:"credits"`           // movies
 	AggregateCredits Credits `json:"aggregate_credits"` // series: every season

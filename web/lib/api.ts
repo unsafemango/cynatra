@@ -29,6 +29,9 @@ export type Title = {
   colorful?: boolean;
 };
 
+/** Someone credited on a title; id opens /p/:id. */
+export type PersonRef = { id: number; name: string };
+
 /** A search result or recommendation: just enough for a poster tile. */
 export type SearchHit = {
   id: string;
@@ -55,7 +58,7 @@ export type TitleDetails = {
   countries: string[];
   companies: string[];
   networks: Provider[];
-  createdBy: string[];
+  createdBy: PersonRef[];
   /** USD */
   budget?: number;
   revenue?: number;
@@ -64,7 +67,7 @@ export type TitleDetails = {
   seasonList: { number: number; name: string; episodes: number; year?: number; posterUrl?: string }[];
   /** id is the TMDB person ID, for /p/:id. */
   cast: { id: number; name: string; character?: string; episodes?: number; photoUrl?: string }[];
-  crew: { job: string; people: string[] }[];
+  crew: { job: string; people: PersonRef[] }[];
   keywords: string[];
   homepage?: string;
   imdbUrl?: string;

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PosterTile } from "@/components/PosterTile";
-import type { FullTitle } from "@/lib/api";
+import type { FullTitle, PersonRef } from "@/lib/api";
 
 // Dates come as YYYY-MM-DD; formatting in UTC keeps them from shifting a day.
 const formatDate = (d?: string) =>
@@ -25,7 +25,7 @@ export function TitleInfo({ title: t }: { title: FullTitle }) {
   const series = t.mediaType === "tv";
   const ended = d.status === "Ended" || d.status === "Canceled";
 
-  const facts: [string, string | undefined][] = [
+  const facts: [string, React.ReactNode][] = [
     [series ? "First aired" : "Released", formatDate(d.releaseDate)],
     ["Last aired", series && ended ? formatDate(d.lastAirDate) : undefined],
     ["Status", d.status],
@@ -35,7 +35,7 @@ export function TitleInfo({ title: t }: { title: FullTitle }) {
     ["Original language", d.originalLanguage],
     ["Spoken languages", d.languages.length > 1 ? d.languages.join(", ") : undefined],
     [d.countries.length > 1 ? "Countries" : "Country", d.countries.join(", ") || undefined],
-    ["Created by", d.createdBy.join(", ") || undefined],
+    ["Created by", d.createdBy.length > 0 ? <People people={d.createdBy} /> : undefined],
     ["Network", d.networks.map((n) => n.name).join(", ") || undefined],
     ["Production", d.companies.slice(0, 4).join(", ") || undefined],
     ["Budget", formatMoney(d.budget)],
@@ -72,7 +72,9 @@ export function TitleInfo({ title: t }: { title: FullTitle }) {
               {d.crew.map((g) => (
                 <div key={g.job} className="contents">
                   <dt className="text-muted">{g.job}</dt>
-                  <dd>{g.people.join(", ")}</dd>
+                  <dd>
+                    <People people={g.people} />
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -173,6 +175,18 @@ export function TitleInfo({ title: t }: { title: FullTitle }) {
       )}
     </div>
   );
+}
+
+/** Comma-separated names, each linking to that person's page. */
+function People({ people }: { people: PersonRef[] }) {
+  return people.map((p, i) => (
+    <span key={p.id}>
+      {i > 0 && ", "}
+      <Link href={`/p/${p.id}`} className="hover:underline decoration-accent underline-offset-4">
+        {p.name}
+      </Link>
+    </span>
+  ));
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {

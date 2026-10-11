@@ -28,7 +28,7 @@ type TitleDetails struct {
 	Countries        []string     `json:"countries"`
 	Companies        []string     `json:"companies"`
 	Networks         []Provider   `json:"networks"`
-	CreatedBy        []string     `json:"createdBy"`
+	CreatedBy        []PersonRef  `json:"createdBy"`
 	Budget           int64        `json:"budget,omitempty"`  // USD
 	Revenue          int64        `json:"revenue,omitempty"` // USD
 	Collection       string       `json:"collection,omitempty"`
@@ -59,8 +59,14 @@ type CastMember struct {
 }
 
 type CrewGroup struct {
-	Job    string   `json:"job"`
-	People []string `json:"people"`
+	Job    string      `json:"job"`
+	People []PersonRef `json:"people"`
+}
+
+// PersonRef names someone and links to their person page.
+type PersonRef struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 const (
@@ -104,7 +110,7 @@ func toTitleDetails(media string, d *tmdb.FullDetails, region string) TitleDetai
 		Countries:   names(d.Countries),
 		Companies:   names(d.Companies),
 		Networks:    []Provider{},
-		CreatedBy:   names(d.CreatedBy),
+		CreatedBy:   []PersonRef{},
 		SeasonList:  []Season{},
 		Keywords:    []string{},
 	}
@@ -116,6 +122,9 @@ func toTitleDetails(media string, d *tmdb.FullDetails, region string) TitleDetai
 		td.LastAirDate = d.LastAirDate
 		td.Episodes = d.NumberOfEpisodes
 		credits = d.AggregateCredits
+	}
+	for _, c := range d.CreatedBy {
+		td.CreatedBy = append(td.CreatedBy, PersonRef{ID: c.ID, Name: c.Name})
 	}
 	if original != title {
 		td.OriginalTitle = original
@@ -232,7 +241,7 @@ func toCast(cast []tmdb.CastMember) []CastMember {
 }
 
 func toCrew(crew []tmdb.CrewMember) []CrewGroup {
-	byJob := map[string][]string{}
+	byJob := map[string][]PersonRef{}
 	for _, c := range crew {
 		jobs := []string{c.Job}
 		for _, j := range c.Jobs {
@@ -240,8 +249,9 @@ func toCrew(crew []tmdb.CrewMember) []CrewGroup {
 		}
 		for _, job := range jobs {
 			people := byJob[job]
-			if job != "" && slices.Contains(crewJobs, job) && !slices.Contains(people, c.Name) && len(people) < maxPerJob {
-				byJob[job] = append(people, c.Name)
+			listed := slices.ContainsFunc(people, func(p PersonRef) bool { return p.ID == c.ID })
+			if job != "" && slices.Contains(crewJobs, job) && !listed && len(people) < maxPerJob {
+				byJob[job] = append(people, PersonRef{ID: c.ID, Name: c.Name})
 			}
 		}
 	}
