@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useShortlist } from "@/lib/shortlist";
+import { SearchIcon } from "./icons";
 import { Logo, LogoMark } from "./Logo";
 
 export function Header() {
@@ -50,6 +51,11 @@ function Nav() {
 
   return (
     <nav aria-label="Main" className="flex items-center gap-1 text-sm whitespace-nowrap">
+      <NavLink href="/search" current={pathname === "/search"} label="Search">
+        <SearchIcon width={16} height={16} />
+        {/* Phones: icon only, so the rest of the nav still fits. */}
+        <span className="hidden sm:inline ml-1.5">Search</span>
+      </NavLink>
       <NavLink href="/" current={pathname === "/"}>
         Spin
       </NavLink>
@@ -82,10 +88,22 @@ function Nav() {
   );
 }
 
-function NavLink({ href, current, children }: { href: string; current: boolean; children: React.ReactNode }) {
+function NavLink({
+  href,
+  current,
+  label,
+  children,
+}: {
+  href: string;
+  current: boolean;
+  /** Accessible name, when the visible text can be hidden. */
+  label?: string;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}
+      aria-label={label}
       aria-current={current ? "page" : undefined}
       className={`inline-flex items-center px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
         current ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground hover:bg-surface/80"

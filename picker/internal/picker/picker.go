@@ -349,12 +349,15 @@ func (p *Picker) Lookup(ctx context.Context, media string, id int, region string
 	if err != nil {
 		return nil, err
 	}
-	for _, g := range t.Genres {
-		if g == "Animation" {
-			t.Kind = "animation"
-		}
-	}
+	markAnimation(t)
 	return t, nil
+}
+
+// markAnimation sets the kind of a title looked up by ID, which may be animated.
+func markAnimation(t *Title) {
+	if slices.Contains(t.Genres, "Animation") {
+		t.Kind = "animation"
+	}
 }
 
 func (p *Picker) details(ctx context.Context, a attempt, id int, region string) (*Title, error) {
@@ -362,6 +365,10 @@ func (p *Picker) details(ctx context.Context, a attempt, id int, region string) 
 	if err != nil {
 		return nil, err
 	}
+	return toTitle(a, d, region), nil
+}
+
+func toTitle(a attempt, d *tmdb.Details, region string) *Title {
 	t := &Title{
 		ID:        fmt.Sprintf("%s:%d", a.media, d.ID),
 		TMDBID:    d.ID,
@@ -405,7 +412,7 @@ func (p *Picker) details(ctx context.Context, a attempt, id int, region string) 
 			Buy:    toProviders(rp.Buy),
 		}
 	}
-	return t, nil
+	return t
 }
 
 func pickTrailer(vs []tmdb.Video) string {

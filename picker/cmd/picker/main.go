@@ -58,13 +58,36 @@ func main() {
 			writeJSON(w, http.StatusOK, t)
 		}
 	})
+	mux.HandleFunc("GET /title/{media}/{id}/full", func(w http.ResponseWriter, r *http.Request) {
+		media := r.PathValue("media")
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if (media != "movie" && media != "tv") || err != nil || id <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid title")
+			return
+		}
+		t, err := p.Full(r.Context(), media, id, orDefault(r.URL.Query().Get("region"), "US"))
+		switch {
+		case errors.Is(err, tmdb.ErrNotFound):
+			writeError(w, http.StatusNotFound, "Title not found.")
+		case err != nil:
+			log.Printf("full: %v", err)
+			writeError(w, http.StatusBadGateway, "Couldn't reach the movie database. Try again.")
+		default:
+			writeJSON(w, http.StatusOK, t)
+		}
+	})
 	mux.HandleFunc("GET /search", func(w http.ResponseWriter, r *http.Request) {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))
 		if q == "" || len(q) > 100 {
 			writeError(w, http.StatusBadRequest, "Type a title to search for.")
 			return
 		}
-		hits, err := p.Search(r.Context(), q)
+		// The shortlist shows a few; the search page asks for up to a full TMDB page.
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if err != nil || limit < 1 || limit > 20 {
+			limit = 8
+		}
+		hits, err := p.Search(r.Context(), q, limit)
 		if err != nil {
 			log.Printf("search: %v", err)
 			writeError(w, http.StatusBadGateway, "Search isn't working right now. Try again.")

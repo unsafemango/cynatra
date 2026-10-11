@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/index.js";
 import { callPicker } from "../picker.js";
@@ -27,27 +27,31 @@ pickRouter.get("/genres", async (_req, res) => {
   res.status(status).json(body);
 });
 
-// Title search (movies and series), for adding a specific title to the shortlist.
+// Title search (movies and series): the shortlist's quick add and the search page.
 pickRouter.get("/search", async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   if (!q || q.length > 100) {
     res.status(400).json({ error: "Type a title to search for." });
     return;
   }
-  const { status, body } = await callPicker(`/search?q=${encodeURIComponent(q)}`);
+  const limit = /^\d{1,2}$/.test(String(req.query.limit)) ? `&limit=${req.query.limit}` : "";
+  const { status, body } = await callPicker(`/search?q=${encodeURIComponent(q)}${limit}`);
   res.status(status).json(body);
 });
 
-pickRouter.get("/title/:media/:id", async (req, res) => {
+// A single title; `/full` adds cast, crew, seasons and everything else for the title page.
+const getTitle = (full: boolean) => async (req: Request<{ media: string; id: string }>, res: Response) => {
   const { media, id } = req.params;
   if (!/^(movie|tv)$/.test(media) || !/^\d+$/.test(id)) {
     res.status(400).json({ error: "Invalid title" });
     return;
   }
   const region = /^[A-Za-z]{2}$/.test(String(req.query.region)) ? String(req.query.region) : "US";
-  const { status, body } = await callPicker(`/title/${media}/${id}?region=${region}`);
+  const { status, body } = await callPicker(`/title/${media}/${id}${full ? "/full" : ""}?region=${region}`);
   res.status(status).json(body);
-});
+};
+pickRouter.get("/title/:media/:id", getTitle(false));
+pickRouter.get("/title/:media/:id/full", getTitle(true));
 
 pickRouter.post("/pick", async (req, res) => {
   const parsed = pickRequest.safeParse(req.body ?? {});

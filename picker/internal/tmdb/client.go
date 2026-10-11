@@ -96,6 +96,105 @@ type Details struct {
 	} `json:"watch/providers"`
 }
 
+type Named struct {
+	Name string `json:"name"`
+}
+
+type Network struct {
+	Name     string `json:"name"`
+	LogoPath string `json:"logo_path"`
+}
+
+type Language struct {
+	Code        string `json:"iso_639_1"`
+	EnglishName string `json:"english_name"`
+}
+
+type Season struct {
+	SeasonNumber int    `json:"season_number"`
+	Name         string `json:"name"`
+	EpisodeCount int    `json:"episode_count"`
+	AirDate      string `json:"air_date"`
+	PosterPath   string `json:"poster_path"`
+}
+
+// CastMember covers /credits (Character) and TV /aggregate_credits (Roles).
+type CastMember struct {
+	Name              string `json:"name"`
+	ProfilePath       string `json:"profile_path"`
+	Character         string `json:"character"`
+	TotalEpisodeCount int    `json:"total_episode_count"`
+	Roles             []struct {
+		Character string `json:"character"`
+	} `json:"roles"`
+}
+
+// CrewMember covers /credits (Job) and TV /aggregate_credits (Jobs).
+type CrewMember struct {
+	Name string `json:"name"`
+	Job  string `json:"job"`
+	Jobs []struct {
+		Job string `json:"job"`
+	} `json:"jobs"`
+}
+
+type Credits struct {
+	Cast []CastMember `json:"cast"`
+	Crew []CrewMember `json:"crew"`
+}
+
+// FullDetails is a title with everything the title page shows. Movies and
+// series name some parts differently; the unused ones stay zero.
+type FullDetails struct {
+	Details
+	Tagline          string     `json:"tagline"`
+	Status           string     `json:"status"`
+	Homepage         string     `json:"homepage"`
+	OriginalTitle    string     `json:"original_title"`
+	OriginalName     string     `json:"original_name"`
+	OriginalLanguage string     `json:"original_language"`
+	SpokenLanguages  []Language `json:"spoken_languages"`
+	Countries        []Named    `json:"production_countries"`
+	Companies        []Named    `json:"production_companies"`
+	Budget           int64      `json:"budget"`
+	Revenue          int64      `json:"revenue"`
+	Collection       *Named     `json:"belongs_to_collection"`
+	// Series only.
+	LastAirDate      string    `json:"last_air_date"`
+	NumberOfEpisodes int       `json:"number_of_episodes"`
+	Networks         []Network `json:"networks"`
+	CreatedBy        []Named   `json:"created_by"`
+	Seasons          []Season  `json:"seasons"`
+
+	Credits          Credits `json:"credits"`           // movies
+	AggregateCredits Credits `json:"aggregate_credits"` // series: every season
+	ReleaseDates     struct {
+		Results []struct {
+			Country string `json:"iso_3166_1"`
+			Dates   []struct {
+				Certification string `json:"certification"`
+				Type          int    `json:"type"`
+			} `json:"release_dates"`
+		} `json:"results"`
+	} `json:"release_dates"` // movies
+	ContentRatings struct {
+		Results []struct {
+			Country string `json:"iso_3166_1"`
+			Rating  string `json:"rating"`
+		} `json:"results"`
+	} `json:"content_ratings"` // series
+	Keywords struct {
+		Keywords []Named `json:"keywords"` // movies
+		Results  []Named `json:"results"`  // series
+	} `json:"keywords"`
+	Recommendations struct {
+		Results []SearchResult `json:"results"`
+	} `json:"recommendations"`
+	ExternalIDs struct {
+		IMDbID string `json:"imdb_id"`
+	} `json:"external_ids"`
+}
+
 // Discover calls /discover/{movie|tv}. Results are cached by query.
 func (c *Client) Discover(ctx context.Context, media string, q url.Values) (*DiscoverPage, error) {
 	var page DiscoverPage
@@ -135,6 +234,21 @@ func (c *Client) SearchMulti(ctx context.Context, query string) ([]SearchResult,
 func (c *Client) Details(ctx context.Context, media string, id int) (*Details, error) {
 	q := url.Values{"append_to_response": {"videos,watch/providers"}}
 	var d Details
+	if err := c.get(ctx, fmt.Sprintf("/%s/%d", media, id), q, detailsTTL, &d); err != nil {
+		return nil, err
+	}
+	return &d, nil
+}
+
+// FullDetails fetches a title with credits, ratings, keywords,
+// recommendations and external IDs too, in one request.
+func (c *Client) FullDetails(ctx context.Context, media string, id int) (*FullDetails, error) {
+	extra := "credits,release_dates"
+	if media == "tv" {
+		extra = "aggregate_credits,content_ratings"
+	}
+	q := url.Values{"append_to_response": {"videos,watch/providers,keywords,recommendations,external_ids," + extra}}
+	var d FullDetails
 	if err := c.get(ctx, fmt.Sprintf("/%s/%d", media, id), q, detailsTTL, &d); err != nil {
 		return nil, err
 	}

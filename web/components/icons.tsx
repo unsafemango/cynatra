@@ -1,4 +1,4 @@
-// Small stroke icons (24×24 grid, currentColor) used by the auth pages.
+// Small stroke icons (24×24 grid, currentColor).
 import type { SVGProps } from "react";
 
 function Icon({ children, ...props }: SVGProps<SVGSVGElement>) {
@@ -79,6 +79,13 @@ export const EyeCheckIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12" />
     <path d="m8.5 14.5 2.5 2.5 4.5-4.5" />
+  </Icon>
+);
+
+export const SearchIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
   </Icon>
 );
 

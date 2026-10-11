@@ -29,6 +29,50 @@ export type Title = {
   colorful?: boolean;
 };
 
+/** A search result or recommendation: just enough for a poster tile. */
+export type SearchHit = {
+  id: string;
+  tmdbId: number;
+  mediaType: "movie" | "tv";
+  kind: Kind;
+  title: string;
+  year?: number;
+  posterUrl?: string;
+};
+
+export type TitleDetails = {
+  tagline?: string;
+  /** Only when it differs from the title, e.g. a foreign-language original. */
+  originalTitle?: string;
+  status?: string;
+  /** YYYY-MM-DD; the first air date for series. */
+  releaseDate?: string;
+  lastAirDate?: string;
+  /** Age rating for the viewer's region (falls back to the US one). */
+  certification?: string;
+  originalLanguage?: string;
+  languages: string[];
+  countries: string[];
+  companies: string[];
+  networks: Provider[];
+  createdBy: string[];
+  /** USD */
+  budget?: number;
+  revenue?: number;
+  collection?: string;
+  episodes?: number;
+  seasonList: { number: number; name: string; episodes: number; year?: number; posterUrl?: string }[];
+  cast: { name: string; character?: string; episodes?: number; photoUrl?: string }[];
+  crew: { job: string; people: string[] }[];
+  keywords: string[];
+  homepage?: string;
+  imdbUrl?: string;
+  recommendations: SearchHit[];
+};
+
+/** A title with everything the title page shows (GET /api/title/:media/:id/full). */
+export type FullTitle = Title & { details: TitleDetails };
+
 export type Genre = { slug: string; label: string };
 
 export type Filters = {

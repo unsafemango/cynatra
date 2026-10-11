@@ -20,18 +20,16 @@ type SearchHit struct {
 	PosterURL string `json:"posterUrl,omitempty"`
 }
 
-const maxSearchHits = 8
-
-// Search finds movies and series by name, best matches first.
-func (p *Picker) Search(ctx context.Context, query string) ([]SearchHit, error) {
+// Search finds up to limit movies and series by name, best matches first.
+func (p *Picker) Search(ctx context.Context, query string, limit int) ([]SearchHit, error) {
 	results, err := p.tmdb.SearchMulti(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	return searchHits(results), nil
+	return searchHits(results, limit), nil
 }
 
-func searchHits(results []tmdb.SearchResult) []SearchHit {
+func searchHits(results []tmdb.SearchResult, limit int) []SearchHit {
 	hits := []SearchHit{}
 	for _, r := range results {
 		if r.MediaType != "movie" && r.MediaType != "tv" {
@@ -62,7 +60,7 @@ func searchHits(results []tmdb.SearchResult) []SearchHit {
 			h.PosterURL = "https://image.tmdb.org/t/p/w185" + r.PosterPath
 		}
 		hits = append(hits, h)
-		if len(hits) == maxSearchHits {
+		if len(hits) == limit {
 			break
 		}
 	}

@@ -12,7 +12,7 @@ func TestSearchHits(t *testing.T) {
 		{ID: 346648, MediaType: "movie", Title: "Paddington 2", ReleaseDate: "2017-11-09", PosterPath: "/p.jpg", VoteCount: 3000},
 		{ID: 82728, MediaType: "tv", Name: "Bluey", FirstAirDate: "2018-10-01", PosterPath: "/b.jpg", GenreIDs: []int{16, 10751}},
 		{ID: 9, MediaType: "movie", Title: "Obscure"}, // no poster, no votes
-	})
+	}, 8)
 	if len(hits) != 2 {
 		t.Fatalf("got %d hits: %+v", len(hits), hits)
 	}
