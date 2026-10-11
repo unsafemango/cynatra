@@ -3,21 +3,30 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
-import { formatRuntime, toSlug, type Provider, type Title } from "@/lib/api";
+import { formatRuntime, toSlug, type LibraryStatus, type Provider, type Title } from "@/lib/api";
 import { Rating } from "./Rating";
 
 const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
 
 const KIND_LABEL = { movie: "Movie", series: "Series", animation: "Animation" } as const;
 
+const STATUS_TAG: Record<LibraryStatus, { label: string; className: string }> = {
+  watchlist: { label: "🔖 On your watchlist", className: "border-accent-2/50 text-accent-2" },
+  watching: { label: "▶ Watching", className: "border-sky-400/50 text-sky-300" },
+  seen: { label: "✓ Seen", className: "border-emerald-400/50 text-emerald-300" },
+};
+
 export function ResultCard({
   title: t,
   actions,
   animate = true,
+  status,
 }: {
   title: Title;
   actions?: React.ReactNode;
   animate?: boolean;
+  /** Where the title is in the viewer's library, shown as a tag. */
+  status?: LibraryStatus;
 }) {
   const [showTrailer, setShowTrailer] = useState(false);
   const trailerRef = useRef<HTMLIFrameElement>(null);
@@ -80,6 +89,13 @@ export function ResultCard({
         <div className="min-w-0 flex flex-col">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             <span className="px-2 py-0.5 rounded-full bg-surface-2 border border-border">{KIND_LABEL[t.kind]}</span>
+            {status && (
+              <span className={`px-2 py-0.5 rounded-full border ${STATUS_TAG[status].className}`}>
+                <Link href={`/library?tab=${status}`} className="hover:underline underline-offset-2">
+                  {STATUS_TAG[status].label}
+                </Link>
+              </span>
+            )}
             {t.colorful && (
               <span className="px-2 py-0.5 rounded-full border border-accent-2/50 text-accent-2" title="Picked for its bright, colourful look">
                 🦄 Bright &amp; colourful

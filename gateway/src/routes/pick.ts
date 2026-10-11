@@ -106,6 +106,22 @@ pickRouter.post("/pick", async (req, res) => {
 
   if (status === 200 && user && pool) {
     await pool.query("INSERT INTO history (user_id, title_id, title) VALUES ($1, $2, $3)", [user.id, body.id, body]);
+    body.library = await libraryStatus(user.id, body.id);
   }
   res.status(status).json(body);
 });
+
+/**
+ * Where a title is in the user's library, for tagging spin results:
+ * "seen", "watching" or "watchlist" (in that order of precedence), or undefined.
+ */
+export async function libraryStatus(userId: string, titleId: string) {
+  const { rows } = await pool!.query<{ seen: boolean; watching: boolean; watchlist: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM seen WHERE user_id = $1 AND title_id = $2) AS seen,
+            EXISTS (SELECT 1 FROM watching WHERE user_id = $1 AND title_id = $2) AS watching,
+            EXISTS (SELECT 1 FROM watchlist WHERE user_id = $1 AND title_id = $2) AS watchlist`,
+    [userId, titleId],
+  );
+  const r = rows[0];
+  return r?.seen ? "seen" : r?.watching ? "watching" : r?.watchlist ? "watchlist" : undefined;
+}

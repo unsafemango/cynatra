@@ -91,7 +91,9 @@ export default function SpinPage() {
       await new Promise((r) => setTimeout(r, Math.max(0, MIN_SPIN_MS - (Date.now() - started))));
       setResult(t);
       setSource(from);
-      setSaved(from === "watchlist"); // it's already on the watchlist
+      // Already in the library? Show it, and don't offer to add it again.
+      setSaved(from === "watchlist" || t.library === "watchlist");
+      setWatching(t.library === "watching");
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -254,6 +256,7 @@ export default function SpinPage() {
           <ResultCard
             key={result.id}
             title={result}
+            status={watching ? "watching" : saved ? "watchlist" : result.library}
             actions={
               <>
                 <button onClick={reroll} className={secondaryBtn}>

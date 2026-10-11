@@ -7,6 +7,8 @@ export type PickType = Kind | "any";
 
 export type Provider = { name: string; logo: string };
 
+export type LibraryStatus = "watchlist" | "watching" | "seen";
+
 export type Title = {
   id: string; // "movie:123" | "tv:456"
   tmdbId: number;
@@ -31,6 +33,8 @@ export type Title = {
   whereToWatch?: { link: string; stream: Provider[]; rent: Provider[]; buy: Provider[] };
   /** Picked by the bright & colourful look filter. */
   colorful?: boolean;
+  /** On spin results for logged-in users: where it already is in their library. */
+  library?: LibraryStatus;
 };
 
 /** Someone credited on a title; id opens /p/:id. */
