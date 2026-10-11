@@ -7,7 +7,10 @@ const KIND_LABEL = { movie: "Movie", series: "Series", animation: "Animation" } 
 /** Poster, title and year, linking to the title page. */
 export function PosterTile({ hit, sizes = "(max-width: 640px) 45vw, 180px" }: { hit: SearchHit; sizes?: string }) {
   return (
-    <Link href={`/t/${toSlug(hit.id)}`} className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-accent">
+    <Link
+      href={`/t/${toSlug(hit.id)}`}
+      className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-accent"
+    >
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-border bg-surface-2 transition group-hover:border-muted">
         {hit.posterUrl ? (
           <Image
@@ -18,7 +21,9 @@ export function PosterTile({ hit, sizes = "(max-width: 640px) 45vw, 180px" }: { 
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
-          <span className="absolute inset-0 grid place-items-center p-3 text-center text-sm text-muted">{hit.title}</span>
+          <span className="absolute inset-0 grid place-items-center p-3 text-center text-sm text-muted">
+            {hit.title}
+          </span>
         )}
       </div>
       <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug group-hover:underline decoration-accent underline-offset-4">

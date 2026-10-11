@@ -76,6 +76,23 @@ func main() {
 			writeJSON(w, http.StatusOK, t)
 		}
 	})
+	mux.HandleFunc("GET /person/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil || id <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid person")
+			return
+		}
+		person, err := p.Person(r.Context(), id)
+		switch {
+		case errors.Is(err, tmdb.ErrNotFound):
+			writeError(w, http.StatusNotFound, "Person not found.")
+		case err != nil:
+			log.Printf("person: %v", err)
+			writeError(w, http.StatusBadGateway, "Couldn't reach the movie database. Try again.")
+		default:
+			writeJSON(w, http.StatusOK, person)
+		}
+	})
 	mux.HandleFunc("GET /search", func(w http.ResponseWriter, r *http.Request) {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))
 		if q == "" || len(q) > 100 {

@@ -120,6 +120,7 @@ type Season struct {
 
 // CastMember covers /credits (Character) and TV /aggregate_credits (Roles).
 type CastMember struct {
+	ID                int    `json:"id"`
 	Name              string `json:"name"`
 	ProfilePath       string `json:"profile_path"`
 	Character         string `json:"character"`
@@ -195,6 +196,35 @@ type FullDetails struct {
 	} `json:"external_ids"`
 }
 
+// PersonCredit is one movie or series in a person's combined credits.
+type PersonCredit struct {
+	SearchResult
+	Character    string `json:"character"`     // cast
+	Job          string `json:"job"`           // crew
+	EpisodeCount int    `json:"episode_count"` // series
+}
+
+type Person struct {
+	ID                 int      `json:"id"`
+	Name               string   `json:"name"`
+	Biography          string   `json:"biography"`
+	Birthday           string   `json:"birthday"`
+	Deathday           string   `json:"deathday"`
+	PlaceOfBirth       string   `json:"place_of_birth"`
+	KnownForDepartment string   `json:"known_for_department"`
+	AlsoKnownAs        []string `json:"also_known_as"`
+	ProfilePath        string   `json:"profile_path"`
+	Homepage           string   `json:"homepage"`
+	CombinedCredits    struct {
+		Cast []PersonCredit `json:"cast"`
+		Crew []PersonCredit `json:"crew"`
+	} `json:"combined_credits"`
+	ExternalIDs struct {
+		IMDbID      string `json:"imdb_id"`
+		InstagramID string `json:"instagram_id"`
+	} `json:"external_ids"`
+}
+
 // Discover calls /discover/{movie|tv}. Results are cached by query.
 func (c *Client) Discover(ctx context.Context, media string, q url.Values) (*DiscoverPage, error) {
 	var page DiscoverPage
@@ -253,6 +283,16 @@ func (c *Client) FullDetails(ctx context.Context, media string, id int) (*FullDe
 		return nil, err
 	}
 	return &d, nil
+}
+
+// Person fetches an actor or crew member with every credit, in one request.
+func (c *Client) Person(ctx context.Context, id int) (*Person, error) {
+	q := url.Values{"append_to_response": {"combined_credits,external_ids"}}
+	var p Person
+	if err := c.get(ctx, fmt.Sprintf("/person/%d", id), q, detailsTTL, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 func (c *Client) get(ctx context.Context, path string, q url.Values, ttl time.Duration, out any) error {

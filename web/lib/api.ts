@@ -62,7 +62,8 @@ export type TitleDetails = {
   collection?: string;
   episodes?: number;
   seasonList: { number: number; name: string; episodes: number; year?: number; posterUrl?: string }[];
-  cast: { name: string; character?: string; episodes?: number; photoUrl?: string }[];
+  /** id is the TMDB person ID, for /p/:id. */
+  cast: { id: number; name: string; character?: string; episodes?: number; photoUrl?: string }[];
   crew: { job: string; people: string[] }[];
   keywords: string[];
   homepage?: string;
@@ -72,6 +73,28 @@ export type TitleDetails = {
 
 /** A title with everything the title page shows (GET /api/title/:media/:id/full). */
 export type FullTitle = Title & { details: TitleDetails };
+
+/** An actor or crew member (GET /api/person/:id). */
+export type Person = {
+  id: number;
+  name: string;
+  biography?: string;
+  /** YYYY-MM-DD */
+  birthday?: string;
+  deathday?: string;
+  placeOfBirth?: string;
+  /** Department, e.g. Acting, Directing. */
+  knownFor?: string;
+  alsoKnownAs: string[];
+  photoUrl?: string;
+  homepage?: string;
+  imdbUrl?: string;
+  instagramUrl?: string;
+  tmdbUrl: string;
+  knownForTitles: SearchHit[];
+  /** Every movie and series, newest first; undated (upcoming) ones lead. */
+  credits: (SearchHit & { roles: string[]; episodes?: number })[];
+};
 
 export type Genre = { slug: string; label: string };
 

@@ -60,7 +60,9 @@ export function SearchView() {
       </section>
 
       {!shown && !searching && (
-        <p className="text-center text-sm text-muted">Type at least two letters. Pick a result to see everything about it.</p>
+        <p className="text-center text-sm text-muted">
+          Type at least two letters. Pick a result to see everything about it.
+        </p>
       )}
 
       {shown && (

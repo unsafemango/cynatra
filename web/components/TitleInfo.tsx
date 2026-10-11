@@ -1,13 +1,23 @@
 import Image from "next/image";
+import Link from "next/link";
 import { PosterTile } from "@/components/PosterTile";
 import type { FullTitle } from "@/lib/api";
 
 // Dates come as YYYY-MM-DD; formatting in UTC keeps them from shifting a day.
 const formatDate = (d?: string) =>
-  d ? new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : undefined;
+  d
+    ? new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })
+    : undefined;
 
 const formatMoney = (n?: number) =>
-  n ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(n) : undefined;
+  n
+    ? new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(n)
+    : undefined;
 
 /** Everything about a title beyond the card: facts, cast, crew, seasons and more like it. */
 export function TitleInfo({ title: t }: { title: FullTitle }) {
@@ -74,19 +84,26 @@ export function TitleInfo({ title: t }: { title: FullTitle }) {
         <Panel title="Cast">
           <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
             {d.cast.map((c, i) => (
-              <li key={`${c.name}-${i}`} className="w-28 shrink-0 snap-start">
-                <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-surface-2">
-                  {c.photoUrl ? (
-                    <Image src={c.photoUrl} alt="" fill sizes="112px" className="object-cover" />
-                  ) : (
-                    <span className="absolute inset-0 grid place-items-center text-2xl text-muted" aria-hidden>
-                      {c.name.charAt(0)}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1.5 text-sm font-medium leading-snug">{c.name}</p>
-                {c.character && <p className="text-xs leading-snug text-muted">{c.character}</p>}
-                {c.episodes ? <p className="text-xs text-muted/70">{c.episodes} ep.</p> : null}
+              <li key={`${c.id}-${i}`} className="w-28 shrink-0 snap-start">
+                <Link
+                  href={`/p/${c.id}`}
+                  className="group block rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  <div className="relative aspect-[2/3] overflow-hidden rounded-lg border border-transparent bg-surface-2 transition group-hover:border-muted">
+                    {c.photoUrl ? (
+                      <Image src={c.photoUrl} alt="" fill sizes="112px" className="object-cover" />
+                    ) : (
+                      <span className="absolute inset-0 grid place-items-center text-2xl text-muted" aria-hidden>
+                        {c.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-sm font-medium leading-snug group-hover:underline decoration-accent underline-offset-4">
+                    {c.name}
+                  </p>
+                  {c.character && <p className="text-xs leading-snug text-muted">{c.character}</p>}
+                  {c.episodes ? <p className="text-xs text-muted/70">{c.episodes} ep.</p> : null}
+                </Link>
               </li>
             ))}
           </ul>
@@ -126,7 +143,13 @@ export function TitleInfo({ title: t }: { title: FullTitle }) {
           )}
           <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
             {links.map((l) => (
-              <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="text-muted hover:text-foreground hover:underline">
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted hover:text-foreground hover:underline"
+              >
                 {l.label} ↗
               </a>
             ))}

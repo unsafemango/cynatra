@@ -53,6 +53,16 @@ const getTitle = (full: boolean) => async (req: Request<{ media: string; id: str
 pickRouter.get("/title/:media/:id", getTitle(false));
 pickRouter.get("/title/:media/:id/full", getTitle(true));
 
+// An actor or crew member with their filmography.
+pickRouter.get("/person/:id", async (req, res) => {
+  if (!/^\d+$/.test(req.params.id)) {
+    res.status(400).json({ error: "Invalid person" });
+    return;
+  }
+  const { status, body } = await callPicker(`/person/${req.params.id}`);
+  res.status(status).json(body);
+});
+
 pickRouter.post("/pick", async (req, res) => {
   const parsed = pickRequest.safeParse(req.body ?? {});
   if (!parsed.success) {

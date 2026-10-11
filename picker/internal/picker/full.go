@@ -51,6 +51,7 @@ type Season struct {
 }
 
 type CastMember struct {
+	ID        int    `json:"id"` // TMDB person ID, for the person page
 	Name      string `json:"name"`
 	Character string `json:"character,omitempty"`
 	Episodes  int    `json:"episodes,omitempty"` // series only
@@ -215,7 +216,7 @@ func certification(media string, d *tmdb.FullDetails, region string) string {
 func toCast(cast []tmdb.CastMember) []CastMember {
 	out := []CastMember{}
 	for _, c := range cast {
-		m := CastMember{Name: c.Name, Character: c.Character, Episodes: c.TotalEpisodeCount}
+		m := CastMember{ID: c.ID, Name: c.Name, Character: c.Character, Episodes: c.TotalEpisodeCount}
 		if m.Character == "" && len(c.Roles) > 0 {
 			m.Character = c.Roles[0].Character
 		}
