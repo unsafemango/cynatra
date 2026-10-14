@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { FilterPanel } from "@/components/FilterPanel";
-import { ResultCard } from "@/components/ResultCard";
+import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
-import { api, ApiError, fromSlug, toSlug, type Filters, type Genre, type Title } from "@/lib/api";
+import { api, ApiError, fromSlug, type Filters, type Genre, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { addToWatchlist, localSeen, markSeen, startWatching } from "@/lib/library";
+import { localSeen } from "@/lib/library";
 
 const FILTERS_KEY = "cynatra:filters";
 const DEFAULT_FILTERS: Filters = { type: "any", genres: [], minRating: 6.5 };
@@ -29,9 +28,6 @@ export default function SpinPage() {
   const [result, setResult] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [watching, setWatching] = useState(false);
   // Where the current result came from, so Reroll stays in the same mode.
   const [source, setSource] = useState<Source>("filters");
   // Titles shown this session per mode, so rerolls don't repeat.
@@ -82,8 +78,6 @@ export default function SpinPage() {
   const run = useCallback(async (from: Source, fetchTitle: () => Promise<Title>) => {
     setLoading(true);
     setError(null);
-    setNotice(null);
-    setWatching(false);
     resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     const started = Date.now();
     try {
@@ -91,9 +85,6 @@ export default function SpinPage() {
       await new Promise((r) => setTimeout(r, Math.max(0, MIN_SPIN_MS - (Date.now() - started))));
       setResult(t);
       setSource(from);
-      // Already in the library? Show it, and don't offer to add it again.
-      setSaved(from === "watchlist" || t.library === "watchlist");
-      setWatching(t.library === "watching");
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -157,47 +148,6 @@ export default function SpinPage() {
     else spin();
   }, [ready, filtersReady, user, spin, spinWatchlist]);
 
-  const onSeen = async () => {
-    if (!result) return;
-    await markSeen(result.id, Boolean(user), true, result).catch(() => {});
-    reroll();
-  };
-
-  const onSave = async () => {
-    if (!result) return;
-    try {
-      await addToWatchlist(result);
-      setSaved(true);
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't save.");
-    }
-  };
-
-  const onWatch = async () => {
-    if (!result) return;
-    try {
-      await startWatching(result);
-      setWatching(true);
-      setSaved(false); // starting moves it off the watchlist
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't save.");
-    }
-  };
-
-  const onShare = async () => {
-    if (!result) return;
-    const url = `${location.origin}/t/${toSlug(result.id)}`;
-    try {
-      if (navigator.share) await navigator.share({ title: result.title, text: "Watch this tonight:", url });
-      else {
-        await navigator.clipboard.writeText(url);
-        setNotice("Link copied!");
-      }
-    } catch {
-      // user cancelled share sheet
-    }
-  };
-
   return (
     <div className="space-y-10">
       <section className="text-center pt-4 sm:pt-8">
@@ -253,45 +203,20 @@ export default function SpinPage() {
           </p>
         )}
         {!loading && result && (
-          <ResultCard
+          <TitleCard
             key={result.id}
             title={result}
-            status={watching ? "watching" : saved ? "watchlist" : result.library}
-            actions={
-              <>
-                <button onClick={reroll} className={secondaryBtn}>
-                  ↻ Reroll
-                </button>
-                {user ? (
-                  <>
-                    <button onClick={onSave} disabled={saved || watching} className={secondaryBtn}>
-                      {saved ? "✓ On watchlist" : "+ Watchlist"}
-                    </button>
-                    <button onClick={onWatch} disabled={watching} className={secondaryBtn}>
-                      {watching ? "✓ Watching" : "▶ Start watching"}
-                    </button>
-                  </>
-                ) : (
-                  <Link href="/login" className={secondaryBtn}>
-                    + Watchlist
-                  </Link>
-                )}
-                <AddToShortlistButton title={result} className={secondaryBtn} />
-                <button onClick={onSeen} className={secondaryBtn} title="Never show this again">
-                  Seen it
-                </button>
-                <button onClick={onShare} className={secondaryBtn}>
-                  Share
-                </button>
-                {notice && <span className="self-center text-sm text-muted">{notice}</span>}
-              </>
+            // Spun from the watchlist, or already in the library: say so.
+            initialStatus={result.library ?? (source === "watchlist" ? "watchlist" : undefined)}
+            before={
+              <button onClick={reroll} className={actionBtn}>
+                ↻ Reroll
+              </button>
             }
+            onSeen={reroll}
           />
         )}
       </div>
     </div>
   );
 }
-
-const secondaryBtn =
-  "px-4 py-2 rounded-lg bg-surface-2 border border-border text-sm hover:border-muted disabled:opacity-60";

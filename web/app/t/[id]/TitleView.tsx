@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AddToShortlistButton } from "@/components/AddToShortlistButton";
-import { ResultCard } from "@/components/ResultCard";
+import { TitleCard } from "@/components/TitleCard";
 import { TitleInfo } from "@/components/TitleInfo";
 import { api, fromSlug, type FullTitle } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -34,16 +33,7 @@ export function TitleView() {
       {!current && <div className="h-[360px] rounded-2xl bg-surface border border-border animate-pulse" />}
       {title && (
         <>
-          <ResultCard
-            title={title}
-            animate={false}
-            actions={
-              <AddToShortlistButton
-                title={title}
-                className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-sm hover:border-muted disabled:opacity-60"
-              />
-            }
-          />
+          <TitleCard key={title.id} title={title} animate={false} fetchStatus />
           <TitleInfo title={title} />
         </>
       )}

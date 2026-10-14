@@ -3,13 +3,19 @@ import { z } from "zod";
 import { requireAuth, requireDb } from "../auth.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
+import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
 export const libraryRouter = Router();
 libraryRouter.use(requireDb, requireAuth);
 
 const titleId = z.string().regex(/^(movie|tv):\d+$/);
-const titleBody = z.object({ id: titleId, title: z.string() }).passthrough();
+// A title snapshot to save. Title pages send the full title; its page-only
+// extras (cast, crew, seasons...) and the library tag aren't saved.
+const titleBody = z
+  .object({ id: titleId, title: z.string() })
+  .passthrough()
+  .transform(({ details: _details, library: _library, ...snapshot }) => snapshot);
 
 const PAGE_SIZE = 10;
 
@@ -36,6 +42,15 @@ async function sendPage(
 
 // How many items each Library tab has, so the page can label tabs and show an
 // empty tab straight away instead of a loading placeholder.
+// Where one title is in the user's library: "seen", "watching", "watchlist" or null.
+libraryRouter.get("/status/:titleId", async (req, res) => {
+  if (!titleId.safeParse(req.params.titleId).success) {
+    res.status(400).json({ error: "Invalid title id" });
+    return;
+  }
+  res.json({ status: (await libraryStatus(req.user!.id, req.params.titleId)) ?? null });
+});
+
 libraryRouter.get("/counts", async (req, res) => {
   const { rows } = await pool!.query<Record<string, number>>(
     `SELECT
