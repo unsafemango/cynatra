@@ -1,23 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { ResultCard } from "@/components/ResultCard";
+import { StableLabel } from "@/components/StableLabel";
+import { useToast } from "@/components/Toast";
 import { api, toSlug, type LibraryStatus, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import {
-  addToWatchlist,
-  localSeen,
-  markSeen,
-  removeFromWatchlist,
-  startWatching,
-  stopWatching,
-} from "@/lib/library";
+import { addToWatchlist, localSeen, markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
 
 export const actionBtn =
   "px-4 py-2 rounded-lg bg-surface-2 border border-border text-sm hover:border-muted disabled:opacity-60";
 const onBtn = "!border-accent-2/60 !text-accent-2";
+
+const WATCHLIST_LABELS = ["+ Watchlist", "✓ On watchlist"] as const;
+const WATCHING_LABELS = ["▶ Start watching", "✓ Watching"] as const;
+const SEEN_LABELS = ["Seen it", "✓ Seen"] as const;
 
 /**
  * A title's result card with its actions: watchlist, watching, seen, shortlist
@@ -45,8 +44,9 @@ export function TitleCard({
 }) {
   const { user, ready } = useAuth();
   const [status, setStatus] = useState<LibraryStatus | undefined>(initialStatus);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  // A save in progress: further clicks wait, without greying the buttons out (no flicker).
+  const busy = useRef(false);
+  const [toast, notify] = useToast();
 
   // Title pages: find out whether it's already in the library.
   useEffect(() => {
@@ -64,18 +64,20 @@ export function TitleCard({
     };
   }, [fetchStatus, ready, user, title.id]);
 
-  // Runs one library change, showing errors under the buttons.
+  // Runs one library change; the result shows as a toast so nothing on the page moves.
   const run = async (change: () => Promise<unknown>, next: LibraryStatus | undefined, done?: string) => {
-    setBusy(true);
-    setNotice(null);
+    if (busy.current) return false;
+    busy.current = true;
     try {
       await change();
       setStatus(next);
-      if (done) setNotice(done);
+      if (done) notify(done);
+      return true;
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't save.");
+      notify(e instanceof Error ? e.message : "Couldn't save.");
+      return false;
     } finally {
-      setBusy(false);
+      busy.current = false;
     }
   };
 
@@ -94,8 +96,8 @@ export function TitleCard({
       await run(() => markSeen(title.id, Boolean(user), false), undefined, "No longer marked as seen");
       return;
     }
-    await run(() => markSeen(title.id, Boolean(user), true, title), "seen");
-    onSeen?.();
+    if (await run(() => markSeen(title.id, Boolean(user), true, title), "seen", onSeen ? undefined : "Marked as seen"))
+      onSeen?.();
   };
 
   const share = async () => {
@@ -104,7 +106,7 @@ export function TitleCard({
       if (navigator.share) await navigator.share({ title: title.title, text: "Watch this tonight:", url });
       else {
         await navigator.clipboard.writeText(url);
-        setNotice("Link copied!");
+        notify("Link copied!");
       }
     } catch {
       // share sheet cancelled
@@ -123,21 +125,27 @@ export function TitleCard({
             <>
               <button
                 onClick={toggleWatchlist}
-                disabled={busy || status === "watching" || status === "seen"}
+                disabled={status === "watching" || status === "seen"}
                 aria-pressed={status === "watchlist"}
                 title={status === "watchlist" ? "Remove from your watchlist" : "Save it for later"}
                 className={`${actionBtn} ${status === "watchlist" ? onBtn : ""}`}
               >
-                {status === "watchlist" ? "✓ On watchlist" : "+ Watchlist"}
+                <StableLabel
+                  current={status === "watchlist" ? "✓ On watchlist" : "+ Watchlist"}
+                  all={WATCHLIST_LABELS}
+                />
               </button>
               <button
                 onClick={toggleWatching}
-                disabled={busy || status === "seen"}
+                disabled={status === "seen"}
                 aria-pressed={status === "watching"}
                 title={status === "watching" ? "Stop watching" : "Mark as started"}
                 className={`${actionBtn} ${status === "watching" ? onBtn : ""}`}
               >
-                {status === "watching" ? "✓ Watching" : "▶ Start watching"}
+                <StableLabel
+                  current={status === "watching" ? "✓ Watching" : "▶ Start watching"}
+                  all={WATCHING_LABELS}
+                />
               </button>
             </>
           ) : (
@@ -148,21 +156,16 @@ export function TitleCard({
           <AddToShortlistButton title={title} className={actionBtn} />
           <button
             onClick={toggleSeen}
-            disabled={busy}
             aria-pressed={status === "seen"}
             title={status === "seen" ? "Unmark as seen" : "Never suggest this again"}
             className={`${actionBtn} ${status === "seen" ? onBtn : ""}`}
           >
-            {status === "seen" ? "✓ Seen" : "Seen it"}
+            <StableLabel current={status === "seen" ? "✓ Seen" : "Seen it"} all={SEEN_LABELS} />
           </button>
           <button onClick={share} className={actionBtn}>
             Share
           </button>
-          {notice && (
-            <span role="status" className="self-center text-sm text-muted">
-              {notice}
-            </span>
-          )}
+          {toast}
         </>
       }
     />

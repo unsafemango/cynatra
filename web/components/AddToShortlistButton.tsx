@@ -2,6 +2,9 @@
 
 import type { Title } from "@/lib/api";
 import { SHORTLIST_MAX, useShortlist, type ShortlistItem } from "@/lib/shortlist";
+import { StableLabel } from "./StableLabel";
+
+const LABELS = ["+ Shortlist", "✓ Shortlisted", "Shortlist full"] as const;
 
 /** "+ Shortlist" toggle: adds the title, or removes it if it's already there. */
 export function AddToShortlistButton({ title, className }: { title: Title | ShortlistItem; className: string }) {
@@ -24,7 +27,7 @@ export function AddToShortlistButton({ title, className }: { title: Title | Shor
       }
       className={`${className} ${inList ? "!border-accent-2/60 !text-accent-2" : ""}`}
     >
-      {inList ? "✓ Shortlisted" : full ? "Shortlist full" : "+ Shortlist"}
+      <StableLabel current={inList ? "✓ Shortlisted" : full ? "Shortlist full" : "+ Shortlist"} all={LABELS} />
     </button>
   );
 }
