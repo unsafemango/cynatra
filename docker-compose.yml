@@ -53,6 +53,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
       EMAIL_FROM: ${EMAIL_FROM:-Cynatra <no-reply@cynatra.local>}
+      # Inbox for the Help page's contact form (empty: messages are just logged).
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
     ports: ["4000:4000"]
     depends_on:
       postgres: { condition: service_healthy }

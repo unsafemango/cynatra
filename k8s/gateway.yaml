@@ -32,6 +32,7 @@ spec:
           env:
             - { name: PORT, value: "4000" }
             - { name: PICKER_URL, value: http://picker:8081 }
+            - { name: SUPPORT_EMAIL, value: support@cynatra.app } # Help page contact form
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: cynatra-secrets, key: POSTGRES_PASSWORD } }
             - { name: DATABASE_URL, value: postgres://cynatra:$(POSTGRES_PASSWORD)@postgres:5432/cynatra }

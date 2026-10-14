@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LogoMark } from "./Logo";
 import { RatingSourcePicker } from "./RatingSourcePicker";
 
@@ -9,6 +10,14 @@ export function Footer() {
           <LogoMark size={16} />
           Cynatra — stop scrolling, start watching.
         </p>
+        <nav aria-label="Footer" className="flex items-center gap-4">
+          <Link href="/help" className="hover:text-foreground hover:underline underline-offset-4">
+            Help &amp; FAQ
+          </Link>
+          <Link href="/help#contact" className="hover:text-foreground hover:underline underline-offset-4">
+            Contact support
+          </Link>
+        </nav>
         <label htmlFor="footer-rating" className="flex items-center gap-2">
           Ratings from
           <RatingSourcePicker id="footer-rating" />

@@ -49,3 +49,44 @@ export async function sendSignupCode(email: string, code: string, minutes: numbe
 </div>`,
   });
 }
+
+export type SupportMessage = {
+  name?: string;
+  email: string;
+  topic: string;
+  message: string;
+  /** The Cynatra account it came from, when the sender was logged in. */
+  account?: string;
+};
+
+/**
+ * Delivers a contact-form message to the support inbox. Reply-To is the
+ * sender, so replying in the inbox answers them directly. Nothing is sent to
+ * the address they typed, so the form can't be used to email strangers.
+ */
+export async function sendSupportMessage(m: SupportMessage) {
+  const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
+  const preview = oneLine(m.message).slice(0, 60);
+  const text = [
+    `From: ${m.name ? `${oneLine(m.name)} <${m.email}>` : m.email}`,
+    `Account: ${m.account ?? "not logged in"}`,
+    `Topic: ${m.topic}`,
+    "",
+    m.message,
+    "",
+    "— Sent from the Cynatra Help page. Reply to answer them directly.",
+  ].join("\n");
+
+  if (!transport || !config.supportEmail) {
+    if (process.env.NODE_ENV === "production") throw new Error("Support email is not configured");
+    console.log(`[dev] support message (set SUPPORT_EMAIL and SMTP to deliver it):\n${text}`);
+    return;
+  }
+  await transport.sendMail({
+    from: config.emailFrom,
+    to: config.supportEmail,
+    replyTo: { name: m.name ? oneLine(m.name) : "", address: m.email },
+    subject: `[Cynatra support] ${m.topic}: ${preview}`,
+    text,
+  });
+}

@@ -7,8 +7,11 @@ import { checkMailer } from "./mailer.js";
 import { authRouter } from "./routes/auth.js";
 import { libraryRouter } from "./routes/library.js";
 import { pickRouter } from "./routes/pick.js";
+import { supportRouter } from "./routes/support.js";
 
 const app = express();
+// Behind the k3s ingress, the visitor's IP is in X-Forwarded-For (for rate limits).
+app.set("trust proxy", "loopback, uniquelocal");
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json({ limit: "100kb" }));
 app.use(optionalAuth);
@@ -19,6 +22,7 @@ app.get("/health", (_req, res) => {
 app.use("/api", pickRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/me", libraryRouter);
+app.use("/api/support", supportRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);

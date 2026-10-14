@@ -19,6 +19,8 @@ export const config = {
   // ...or one URL, e.g. smtp://mailpit:1025 locally. Neither: codes are logged (dev only).
   smtpUrl: process.env.SMTP_URL || undefined,
   emailFrom: process.env.EMAIL_FROM || "Cynatra <no-reply@cynatra.local>",
+  // Where the Help page's contact form delivers messages. Empty: they're logged (dev only).
+  supportEmail: process.env.SUPPORT_EMAIL || undefined,
 };
 
 if (process.env.NODE_ENV === "production" && config.jwtSecret === "dev-only-secret") {
