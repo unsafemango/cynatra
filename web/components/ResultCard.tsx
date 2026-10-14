@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
 import { formatRuntime, toSlug, type LibraryStatus, type Provider, type Title } from "@/lib/api";
+import { providerUrl } from "@/lib/providers";
 import { Rating } from "./Rating";
 
 const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
@@ -124,8 +125,10 @@ export function ResultCard({
 
           {providers && (providers.stream.length > 0 || providers.rent.length > 0) && (
             <div className="mt-5 space-y-2">
-              <ProviderRow label="Stream" providers={providers.stream} />
-              {providers.stream.length === 0 && <ProviderRow label="Rent" providers={providers.rent} />}
+              <ProviderRow label="Stream" providers={providers.stream} title={t.title} watchPage={providers.link} />
+              {providers.stream.length === 0 && (
+                <ProviderRow label="Rent" providers={providers.rent} title={t.title} watchPage={providers.link} />
+              )}
               <a href={providers.link} target="_blank" rel="noreferrer" className="text-xs text-muted hover:underline">
                 All options on TMDB →
               </a>
@@ -165,22 +168,35 @@ export function ResultCard({
   );
 }
 
-function ProviderRow({ label, providers }: { label: string; providers: Provider[] }) {
+function ProviderRow({
+  label,
+  providers,
+  title,
+  watchPage,
+}: {
+  label: string;
+  providers: Provider[];
+  title: string;
+  /** TMDB's "where to watch" page, for services we can't link to directly. */
+  watchPage: string;
+}) {
   if (providers.length === 0) return null;
   return (
     <div className="flex items-center gap-3">
       <span className="text-xs text-muted w-12">{label}</span>
       <div className="flex flex-wrap gap-1.5">
         {providers.slice(0, 8).map((p) => (
-          <Image
+          <a
             key={p.name}
-            src={p.logo}
-            alt={p.name}
-            title={p.name}
-            width={32}
-            height={32}
-            className="rounded-md"
-          />
+            href={providerUrl(p.name, title, watchPage)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`${label} on ${p.name}`}
+            aria-label={`${label} ${title} on ${p.name} (opens in a new tab)`}
+            className="rounded-md transition hover:-translate-y-0.5 hover:ring-2 hover:ring-foreground/40 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <Image src={p.logo} alt="" width={32} height={32} className="rounded-md" />
+          </a>
         ))}
       </div>
     </div>
