@@ -113,6 +113,17 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, a)
 	})
+	mux.HandleFunc("POST /services", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs    []string `json:"ids"`
+			Region string   `json:"region"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<17)).Decode(&req); err != nil || len(req.IDs) > picker.MaxServicesTitles {
+			writeError(w, http.StatusBadRequest, "invalid request")
+			return
+		}
+		writeJSON(w, http.StatusOK, p.Services(r.Context(), req.IDs, orDefault(req.Region, "US")))
+	})
 	mux.HandleFunc("POST /ratings", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			IDs []string `json:"ids"`

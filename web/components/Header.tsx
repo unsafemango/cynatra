@@ -219,6 +219,9 @@ function AccountMenu({ email }: { email: string }) {
             <Link href="/library" role="menuitem" className={menuItem}>
               My library
             </Link>
+            <Link href="/services" role="menuitem" className={menuItem}>
+              My streaming services
+            </Link>
             <Link href="/help" role="menuitem" className={menuItem}>
               Help &amp; support
             </Link>

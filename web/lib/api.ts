@@ -120,6 +120,30 @@ export type Appearance = {
   seasons: number[];
 };
 
+/** A subscription service in the Services report (ad tiers and add-on channels merged). */
+export type StreamingService = {
+  key: string;
+  name: string;
+  logo?: string;
+  /** Title IDs on this service, and the ones no other service has. */
+  titles: string[];
+  unique: string[];
+};
+
+/** Which services carry the titles on the user's Watchlist and Watching (GET /api/me/services). */
+export type ServicesReport = {
+  region: string;
+  total: number;
+  streamable: number;
+  titles: (SearchHit & { services: string[] })[];
+  services: StreamingService[];
+  /** Best combination, in order: each step adds a service. */
+  plan: { key: string; added: number; covered: number }[];
+};
+
+/** A service the user pays for, with an optional monthly price. */
+export type Subscription = { key: string; price?: number };
+
 export type Genre = { slug: string; label: string };
 
 export type Filters = {

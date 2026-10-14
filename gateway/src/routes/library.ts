@@ -42,6 +42,63 @@ async function sendPage(
 
 // How many items each Library tab has, so the page can label tabs and show an
 // empty tab straight away instead of a loading placeholder.
+// The Services page: which streaming services carry what's on the user's
+// Watchlist and Watching, in their country, plus the services they pay for.
+libraryRouter.get("/services", async (req, res) => {
+  const userId = req.user!.id;
+  const [{ rows: titles }, { rows: user }] = await Promise.all([
+    pool!.query<{ title_id: string }>(
+      `SELECT title_id FROM (
+         SELECT title_id, started_at AS at FROM watching WHERE user_id = $1
+         UNION ALL
+         SELECT title_id, added_at AS at FROM watchlist WHERE user_id = $1
+       ) t ORDER BY at DESC LIMIT 200`,
+      [userId],
+    ),
+    pool!.query<{ region: string; streaming_services: Subscription[] }>(
+      "SELECT region, streaming_services FROM users WHERE id = $1",
+      [userId],
+    ),
+  ]);
+  const ids = [...new Set(titles.map((t) => t.title_id))];
+  const region = user[0]?.region ?? "US";
+  const { status, body } = await callPicker("/services", {
+    method: "POST",
+    body: JSON.stringify({ ids, region }),
+  });
+  if (status !== 200) {
+    res.status(status).json(body);
+    return;
+  }
+  res.json({ report: body, subscribed: user[0]?.streaming_services ?? [] });
+});
+
+type Subscription = { key: string; price?: number };
+
+const subscriptions = z.object({
+  subscribed: z
+    .array(
+      z.object({
+        key: z.string().regex(/^[a-z0-9-]{1,60}$/),
+        // Monthly price in the user's currency; optional.
+        price: z.number().min(0).max(500).optional(),
+      }),
+    )
+    .max(40),
+});
+
+libraryRouter.put("/services", async (req, res) => {
+  const parsed = subscriptions.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid services" });
+    return;
+  }
+  // One entry per service.
+  const unique = [...new Map(parsed.data.subscribed.map((s) => [s.key, s])).values()];
+  await pool!.query("UPDATE users SET streaming_services = $2 WHERE id = $1", [req.user!.id, JSON.stringify(unique)]);
+  res.json({ subscribed: unique });
+});
+
 // Where one title is in the user's library: "seen", "watching", "watchlist" or null.
 libraryRouter.get("/status/:titleId", async (req, res) => {
   if (!titleId.safeParse(req.params.titleId).success) {

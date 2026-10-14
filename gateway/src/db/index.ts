@@ -66,6 +66,10 @@ CREATE TABLE IF NOT EXISTS watching (
   started_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, title_id)
 );
+
+-- Streaming services the user pays for, with an optional monthly price:
+-- [{"key": "netflix", "price": 16.49}, ...]. Used by the Services page.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS streaming_services jsonb NOT NULL DEFAULT '[]';
 `;
 
 export async function migrate() {

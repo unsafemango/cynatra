@@ -7,30 +7,11 @@ import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { CheckIcon, ListIcon, PlayIcon, EyeCheckIcon, Spinner } from "@/components/icons";
 import { LogoMark } from "@/components/Logo";
 import { api, type User } from "@/lib/api";
+import { flag, REGIONS } from "@/lib/regions";
 import { useAuth } from "@/lib/auth";
 
-const REGIONS = [
-  ["US", "United States"],
-  ["GB", "United Kingdom"],
-  ["CA", "Canada"],
-  ["AU", "Australia"],
-  ["IE", "Ireland"],
-  ["DE", "Germany"],
-  ["FR", "France"],
-  ["ES", "Spain"],
-  ["IT", "Italy"],
-  ["NL", "Netherlands"],
-  ["IN", "India"],
-  ["JP", "Japan"],
-  ["KR", "South Korea"],
-  ["BR", "Brazil"],
-  ["MX", "Mexico"],
-  ["NG", "Nigeria"],
-  ["ZA", "South Africa"],
-] as const;
 
-// "US" → 🇺🇸 (regional indicator letters).
-const flag = (code: string) => String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0)));
+
 
 const REGION_OPTIONS: SelectOption<string>[] = REGIONS.map(([code, name]) => ({
   value: code,
