@@ -45,7 +45,7 @@ export function FiltersDrawer({
     };
   }, []);
 
-  const count = describeFilters(draft, genres, providers).length;
+  const count = describeFilters(draft, defaults, genres, providers).length;
   const changed = JSON.stringify(draft) !== JSON.stringify(filters);
 
   return (
@@ -78,7 +78,7 @@ export function FiltersDrawer({
           <h2 id="filters-title" className="text-lg font-semibold leading-tight">
             Filters
           </h2>
-          <p className="text-xs text-muted">{count === 0 ? "Anything goes" : `${count} active`}</p>
+          <p className="text-xs text-muted">{count === 0 ? "No filters" : `${count} active`}</p>
         </div>
         <button
           onClick={onClose}

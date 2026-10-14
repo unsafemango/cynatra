@@ -328,10 +328,17 @@ function RatingSlider({ value, onChange }: { value: number; onChange: (v: number
 export type FilterChip = { id: string; label: string; remove: (f: Filters) => Filters };
 
 /**
- * The filters that narrow a spin, as removable chips for the Spin page:
+ * The filters someone has set, as removable chips for the Spin page:
  * "Series", "Comedy", "2010s", "7.0+ on IMDb", "Netflix", "Under 2 hours"…
+ * Values still at their defaults (e.g. the standard minimum rating) aren't
+ * listed, so a fresh visit shows no filters.
  */
-export function describeFilters(f: Filters, genres: Genre[], providers: ProviderOption[] | null): FilterChip[] {
+export function describeFilters(
+  f: Filters,
+  defaults: Filters,
+  genres: Genre[],
+  providers: ProviderOption[] | null,
+): FilterChip[] {
   const chips: FilterChip[] = [];
   if (f.type !== "any") {
     const label = TYPES.find((t) => t.value === f.type)?.label ?? f.type;
@@ -348,8 +355,12 @@ export function describeFilters(f: Filters, genres: Genre[], providers: Provider
       remove: (x) => ({ ...x, yearFrom: undefined, yearTo: undefined }),
     });
   }
-  if (f.minRating > 0) {
-    chips.push({ id: "rating", label: `${f.minRating.toFixed(1)}+ on IMDb`, remove: (x) => ({ ...x, minRating: 0 }) });
+  if (f.minRating !== defaults.minRating) {
+    chips.push({
+      id: "rating",
+      label: f.minRating > 0 ? `${f.minRating.toFixed(1)}+ on IMDb` : "Any rating",
+      remove: (x) => ({ ...x, minRating: defaults.minRating }),
+    });
   }
   for (const key of f.services ?? []) {
     const label = providers?.find((p) => p.key === key)?.name ?? key;

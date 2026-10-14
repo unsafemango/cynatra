@@ -89,7 +89,7 @@ export default function SpinPage() {
     };
   }, [ready, region, user]);
 
-  const chips = describeFilters(filters, genres, providers);
+  const chips = describeFilters(filters, DEFAULT_FILTERS, genres, providers);
 
   const updateFilters = (f: Filters) => {
     setFilters(f);
@@ -229,7 +229,7 @@ export default function SpinPage() {
         <div className={`mt-4 min-h-8 ${filtersReady ? "" : "invisible"}`}>
           {chips.length === 0 ? (
             <p className="text-center text-sm text-muted">
-              No filters: anything goes.{" "}
+              No filters yet: well-rated picks of anything.{" "}
               <button
                 onClick={() => setShowFilters(true)}
                 className="text-foreground underline-offset-4 hover:underline"
@@ -255,7 +255,7 @@ export default function SpinPage() {
               ))}
               <li>
                 <button
-                  onClick={() => updateFilters({ ...DEFAULT_FILTERS, minRating: 0 })}
+                  onClick={() => updateFilters(DEFAULT_FILTERS)}
                   className="px-2 py-1 text-sm text-muted hover:text-foreground"
                 >
                   Clear all
