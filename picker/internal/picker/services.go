@@ -46,7 +46,7 @@ type ServicesReport struct {
 }
 
 // MaxServicesTitles caps how many titles one report looks up.
-const MaxServicesTitles = 200
+const MaxServicesTitles = 500
 
 // maxPlanSteps keeps the suggested combination to a sensible size.
 const maxPlanSteps = 6
@@ -104,7 +104,13 @@ func serviceName(provider string) string {
 
 var nonKey = regexp.MustCompile(`[^a-z0-9]+`)
 
+// serviceKey identifies a service: "Paramount+" and "Paramount Plus" (TMDB
+// uses both) are the same; "Apple TV+" stays apart from the "Apple TV" store.
 func serviceKey(name string) string {
+	name = strings.TrimSpace(name)
+	if strings.HasSuffix(name, "+") {
+		name = strings.TrimSuffix(name, "+") + " plus"
+	}
 	return strings.Trim(nonKey.ReplaceAllString(strings.ToLower(name), "-"), "-")
 }
 

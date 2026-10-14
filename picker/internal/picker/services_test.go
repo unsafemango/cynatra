@@ -23,8 +23,18 @@ func TestServiceName(t *testing.T) {
 			t.Errorf("serviceName(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if serviceKey("Disney Plus") != "disney-plus" || serviceKey("Apple TV+") != "apple-tv" {
-		t.Errorf("serviceKey: %q %q", serviceKey("Disney Plus"), serviceKey("Apple TV+"))
+	keys := map[string]string{
+		"Disney Plus":    "disney-plus",
+		"Disney+":        "disney-plus",
+		"Paramount+":     "paramount-plus",
+		"Paramount Plus": "paramount-plus",
+		"Apple TV+":      "apple-tv-plus",
+		"Apple TV":       "apple-tv",
+	}
+	for in, want := range keys {
+		if got := serviceKey(in); got != want {
+			t.Errorf("serviceKey(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

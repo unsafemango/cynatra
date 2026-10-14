@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Pagination } from "@/components/Pagination";
+import { Select, type SelectOption } from "@/components/Select";
 import { useRatingText } from "@/components/Rating";
 import { StableLabel } from "@/components/StableLabel";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
@@ -54,6 +55,9 @@ export default function LibraryPage() {
   // Short confirmation after an item moves between tabs.
   const [notice, setNotice] = useState<string | null>(null);
   const [urlRead, setUrlRead] = useState(false);
+  // Streaming-service filter: "all", or a service key like "netflix".
+  const [service, setService] = useState("all");
+  const [libServices, setLibServices] = useState<LibraryService[] | null>(null);
   // Item count per tab: labels the tabs and lets an empty tab show its empty
   // message right away instead of a loading placeholder.
   const [counts, setCounts] = useState<Record<Tab, number> | null>(null);
@@ -71,6 +75,8 @@ export default function LibraryPage() {
     /* eslint-disable react-hooks/set-state-in-effect */
     if (t && TABS.some((x) => x.id === t)) setTab(t);
     if (p > 1) setPage(Math.floor(p));
+    const sv = params.get("service");
+    if (sv && /^[a-z0-9-]{1,60}$/.test(sv)) setService(sv);
     setUrlRead(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -81,10 +87,11 @@ export default function LibraryPage() {
     const qs = new URLSearchParams();
     if (tab !== "watchlist") qs.set("tab", tab);
     if (page > 1) qs.set("page", String(page));
+    if (service !== "all") qs.set("service", service);
     const query = qs.toString();
     const next = `/library${query ? `?${query}` : ""}`;
     if (location.pathname + location.search !== next) history.replaceState(null, "", next);
-  }, [tab, page, urlRead]);
+  }, [tab, page, service, urlRead]);
 
   useEffect(() => {
     if (!notice) return;
@@ -95,20 +102,32 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!user || !urlRead) return;
     let cancelled = false;
-    api<Record<Tab, number>>("/api/me/counts")
+    api<Record<Tab, number>>(`/api/me/counts${serviceQuery(service, "?")}`)
       .then((c) => !cancelled && setCounts(c))
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [user, urlRead, reload, countsTick]);
+  }, [user, urlRead, reload, countsTick, service]);
+
+  // The services that carry anything in the library, for the filter.
+  useEffect(() => {
+    if (!user || !urlRead) return;
+    let cancelled = false;
+    api<{ services: LibraryService[] }>("/api/me/services/library")
+      .then((r) => !cancelled && setLibServices(r.services))
+      .catch(() => !cancelled && setLibServices([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [user, urlRead, reload]);
 
   // Counts can change while this (kept-alive) page is hidden, e.g. a spin adds
   // to History; forget them so a stale 0 never shows an empty tab by mistake.
   useLayoutEffect(() => () => setCounts(null), []);
 
   // Only show the loading placeholder if a load takes noticeably long.
-  const loadKey = `${tab}:${page}`;
+  const loadKey = `${tab}:${page}:${service}`;
   useEffect(() => {
     if (data) return;
     const t = setTimeout(() => setSlowKey(loadKey), 250);
@@ -118,7 +137,7 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!user || !urlRead) return;
     let cancelled = false;
-    api<PageData>(`/api/me/${tab}?page=${page}`)
+    api<PageData>(`/api/me/${tab}?page=${page}${serviceQuery(service, "&")}`)
       .then((r) => {
         if (cancelled) return;
         // Past the end (e.g. the last row of the last page was removed): go back a page.
@@ -134,7 +153,7 @@ export default function LibraryPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, tab, page, reload, urlRead]);
+  }, [user, tab, page, reload, urlRead, service]);
 
   const switchTab = (t: Tab) => {
     if (t === tab) return;
@@ -143,6 +162,15 @@ export default function LibraryPage() {
     setData(null);
     setError(null);
     setNotice(null);
+  };
+
+  const switchService = (key: string) => {
+    if (key === service) return;
+    setService(key);
+    setPage(1);
+    setData(null);
+    setCounts(null);
+    setError(null);
   };
 
   const goToPage = (p: number) => {
@@ -164,8 +192,8 @@ export default function LibraryPage() {
 
   /** Removes a row right away, then refetches so the next item moves up into this page. */
   const dropRow = (item: Item) => {
-    setData((cur) =>
-      cur && { ...cur, total: cur.total - 1, items: cur.items.filter((i) => i.title.id !== item.title.id) },
+    setData(
+      (cur) => cur && { ...cur, total: cur.total - 1, items: cur.items.filter((i) => i.title.id !== item.title.id) },
     );
     setReload((n) => n + 1);
   };
@@ -175,7 +203,9 @@ export default function LibraryPage() {
     await markSeen(item.title.id, true, seen, item.title);
     // On the Seen tab, unmarking removes the row.
     if (tab === "seen" && !seen) return dropRow(item);
-    setData((cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, seen } : i)) });
+    setData(
+      (cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, seen } : i)) },
+    );
     setCountsTick((n) => n + 1); // the Seen tab's count changed
   };
 
@@ -251,6 +281,8 @@ export default function LibraryPage() {
         )}
       </div>
 
+      <ServiceFilter services={libServices} value={service} onChange={switchService} />
+
       <div ref={listTop} className="mt-6 scroll-mt-20">
         {notice && (
           <p role="status" className="mb-4 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30 text-sm">
@@ -261,10 +293,22 @@ export default function LibraryPage() {
         {showSkeleton && <ListSkeleton rows={Math.min(3, counts?.[tab] ?? 3)} />}
         {(items?.length === 0 || knownEmpty) && (
           <p className="text-muted text-center py-12">
-            {current.empty}{" "}
-            <Link href="/" className="text-foreground underline underline-offset-4">
-              Go spin
-            </Link>
+            {service !== "all" ? (
+              <>
+                Nothing in {current.label} is on {libServices?.find((x) => x.key === service)?.name ?? "that service"}{" "}
+                right now.{" "}
+                <button onClick={() => switchService("all")} className="text-foreground underline underline-offset-4">
+                  Show all services
+                </button>
+              </>
+            ) : (
+              <>
+                {current.empty}{" "}
+                <Link href="/" className="text-foreground underline underline-offset-4">
+                  Go spin
+                </Link>
+              </>
+            )}
           </p>
         )}
         <ul className={`grid gap-3 transition-opacity ${loading ? "opacity-50" : ""}`} aria-busy={loading}>
@@ -301,9 +345,7 @@ export default function LibraryPage() {
                       {item.title.title}
                     </Link>
                     <p className="text-xs text-muted mt-1">
-                      {[item.title.year, ratingText(item.title), formatRuntime(item.title)]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {[item.title.year, ratingText(item.title), formatRuntime(item.title)].filter(Boolean).join(" · ")}
                     </p>
                     {item.title.genres.length > 0 && (
                       <p className="text-xs text-muted mt-0.5 truncate">{item.title.genres.slice(0, 3).join(" · ")}</p>
@@ -360,13 +402,7 @@ export default function LibraryPage() {
           })}
         </ul>
         {data && (
-          <Pagination
-            page={page}
-            pageSize={data.pageSize}
-            total={data.total}
-            onChange={goToPage}
-            disabled={loading}
-          />
+          <Pagination page={page} pageSize={data.pageSize} total={data.total} onChange={goToPage} disabled={loading} />
         )}
       </div>
     </div>
@@ -391,5 +427,79 @@ function ListSkeleton({ rows }: { rows: number }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+type LibraryService = {
+  key: string;
+  name: string;
+  logo?: string;
+  counts: Record<Tab, number>;
+};
+
+/** "&service=netflix" (or "?service=…"), or nothing for all services. */
+const serviceQuery = (service: string, sep: "?" | "&") =>
+  service === "all" ? "" : `${sep}service=${encodeURIComponent(service)}`;
+
+/** Filters the library to titles you can stream on one service. */
+function ServiceFilter({
+  services,
+  value,
+  onChange,
+}: {
+  services: LibraryService[] | null;
+  value: string;
+  onChange: (key: string) => void;
+}) {
+  const options: SelectOption<string>[] = [
+    {
+      value: "all",
+      label: "All services",
+      icon: (
+        <span className="grid size-6 place-items-center rounded-md bg-surface-2 text-sm" aria-hidden>
+          📺
+        </span>
+      ),
+      description: "Everything in your library",
+    },
+    ...(services ?? []).map((s) => ({
+      value: s.key,
+      label: s.name,
+      icon: s.logo ? (
+        <Image src={s.logo} alt="" width={24} height={24} className="rounded-md" />
+      ) : (
+        <span className="grid size-6 place-items-center rounded-md bg-surface-2 text-xs" aria-hidden>
+          {s.name.charAt(0)}
+        </span>
+      ),
+      // Only the tabs that have titles on it, e.g. "2 watchlist · 1 seen".
+      description: TABS.filter((t) => s.counts[t.id] > 0)
+        .map((t) => `${s.counts[t.id]} ${t.label.toLowerCase()}`)
+        .join(" · "),
+    })),
+  ];
+  // Linked from an old URL to a service no longer in the library: still show its key.
+  if (value !== "all" && services && !services.some((s) => s.key === value)) {
+    options.push({ value, label: value, description: "Not in your library right now" });
+  }
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span id="library-service-label" className="text-sm text-muted">
+        Streaming on
+      </span>
+      <Select
+        aria-labelledby="library-service-label"
+        value={value}
+        onChange={onChange}
+        options={options}
+        searchable={options.length > 8}
+        searchPlaceholder="Search services…"
+        disabled={!services}
+        className="w-full sm:w-72"
+      />
+      <Link href="/services" className="text-sm text-muted hover:text-foreground hover:underline underline-offset-4">
+        Which services do I need? →
+      </Link>
+    </div>
   );
 }

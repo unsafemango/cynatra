@@ -108,14 +108,102 @@ libraryRouter.get("/status/:titleId", async (req, res) => {
   res.json({ status: (await libraryStatus(req.user!.id, req.params.titleId)) ?? null });
 });
 
+// ---- Streaming-service filter for the Library tabs ----
+
+type LibraryService = { key: string; name: string; logo?: string; titles: Set<string> };
+type ServicesReport = { region: string; services: { key: string; name: string; logo?: string; titles: string[] }[] };
+
+// Which services carry each title in a user's library, per country. Working it
+// out means a lookup per title, so it's kept for a few minutes and dropped
+// whenever the library changes.
+const LIBRARY_SERVICES_TTL = 5 * 60 * 1000;
+const libraryServicesCache = new Map<string, { at: number; services: LibraryService[] }>();
+
+libraryRouter.use((req, _res, next) => {
+  if (req.method !== "GET") {
+    for (const key of libraryServicesCache.keys()) if (key.startsWith(`${req.user!.id}:`)) libraryServicesCache.delete(key);
+  }
+  next();
+});
+
+async function libraryServices(userId: string): Promise<{ region: string; services: LibraryService[] }> {
+  const { rows: user } = await pool!.query<{ region: string }>("SELECT region FROM users WHERE id = $1", [userId]);
+  const region = user[0]?.region ?? "US";
+  const cacheKey = `${userId}:${region}`;
+  const cached = libraryServicesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < LIBRARY_SERVICES_TTL) return { region, services: cached.services };
+
+  const { rows } = await pool!.query<{ title_id: string }>(
+    `SELECT title_id FROM (
+       SELECT title_id, max(at) AS at FROM (
+         SELECT title_id, added_at AS at FROM watchlist WHERE user_id = $1
+         UNION ALL SELECT title_id, started_at FROM watching WHERE user_id = $1
+         UNION ALL SELECT title_id, seen_at FROM seen WHERE user_id = $1 AND title IS NOT NULL
+         UNION ALL SELECT title_id, picked_at FROM history WHERE user_id = $1
+       ) all_titles GROUP BY title_id
+     ) t ORDER BY at DESC LIMIT 500`,
+    [userId],
+  );
+  const { status, body } = await callPicker("/services", {
+    method: "POST",
+    body: JSON.stringify({ ids: rows.map((r) => r.title_id), region }),
+  });
+  if (status !== 200) throw new Error(`picker /services: ${status}`);
+  const services = (body as ServicesReport).services.map((s) => ({ ...s, titles: new Set(s.titles) }));
+  libraryServicesCache.set(cacheKey, { at: Date.now(), services });
+  if (libraryServicesCache.size > 5000) libraryServicesCache.clear();
+  return { region, services };
+}
+
+const serviceKey = z.string().regex(/^[a-z0-9-]{1,60}$/);
+
+/** Title IDs on the ?service= in the query (null: no filter). */
+async function serviceFilter(req: Request): Promise<string[] | null> {
+  const key = serviceKey.safeParse(req.query.service);
+  if (!key.success) return null;
+  const { services } = await libraryServices(req.user!.id);
+  return [...(services.find((s) => s.key === key.data)?.titles ?? [])];
+}
+
+// Services that carry anything in the library, with how many titles each tab has on them.
+libraryRouter.get("/services/library", async (req, res) => {
+  const userId = req.user!.id;
+  const { region, services } = await libraryServices(userId);
+  const tabIds = async (sql: string) => (await pool!.query<{ title_id: string }>(sql, [userId])).rows.map((r) => r.title_id);
+  const [watchlist, watching, seen, history] = await Promise.all([
+    tabIds("SELECT title_id FROM watchlist WHERE user_id = $1"),
+    tabIds("SELECT title_id FROM watching WHERE user_id = $1"),
+    tabIds("SELECT title_id FROM seen WHERE user_id = $1 AND title IS NOT NULL"),
+    tabIds("SELECT title_id FROM history WHERE user_id = $1"),
+  ]);
+  const count = (ids: string[], s: LibraryService) => ids.filter((id) => s.titles.has(id)).length;
+  res.json({
+    region,
+    services: services
+      .map((s) => ({
+        key: s.key,
+        name: s.name,
+        logo: s.logo,
+        counts: {
+          watchlist: count(watchlist, s),
+          watching: count(watching, s),
+          seen: count(seen, s),
+          history: count(history, s),
+        },
+      }))
+      .sort((a, b) => b.counts.watchlist + b.counts.watching - (a.counts.watchlist + a.counts.watching) || a.name.localeCompare(b.name)),
+  });
+});
+
 libraryRouter.get("/counts", async (req, res) => {
+  // $2: only titles on this streaming service (null: everything).
   const { rows } = await pool!.query<Record<string, number>>(
     `SELECT
-       (SELECT count(*)::int FROM watchlist WHERE user_id = $1) AS watchlist,
-       (SELECT count(*)::int FROM watching  WHERE user_id = $1) AS watching,
-       (SELECT count(*)::int FROM seen      WHERE user_id = $1 AND title IS NOT NULL) AS seen,
-       (SELECT count(*)::int FROM history   WHERE user_id = $1) AS history`,
-    [req.user!.id],
+       (SELECT count(*)::int FROM watchlist WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))) AS watchlist,
+       (SELECT count(*)::int FROM watching  WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))) AS watching,
+       (SELECT count(*)::int FROM seen      WHERE user_id = $1 AND title IS NOT NULL AND ($2::text[] IS NULL OR title_id = ANY($2))) AS seen,
+       (SELECT count(*)::int FROM history   WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))) AS history`,
+    [req.user!.id, await serviceFilter(req)],
   );
   res.json(rows[0]);
 });
@@ -124,14 +212,14 @@ libraryRouter.get("/watchlist", async (req, res) => {
   await sendPage(
     req,
     res,
-    "SELECT count(*)::int AS n FROM watchlist WHERE user_id = $1",
+    "SELECT count(*)::int AS n FROM watchlist WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))",
     `SELECT w.title, w.added_at AS "addedAt", (s.title_id IS NOT NULL) AS seen
        FROM watchlist w
        LEFT JOIN seen s ON s.user_id = w.user_id AND s.title_id = w.title_id
-      WHERE w.user_id = $1
+      WHERE w.user_id = $1 AND ($2::text[] IS NULL OR w.title_id = ANY($2))
       ORDER BY w.added_at DESC, w.title_id
-      LIMIT $2 OFFSET $3`,
-    [req.user!.id],
+      LIMIT $3 OFFSET $4`,
+    [req.user!.id, await serviceFilter(req)],
   );
 });
 
@@ -197,13 +285,13 @@ libraryRouter.get("/watching", async (req, res) => {
   await sendPage(
     req,
     res,
-    "SELECT count(*)::int AS n FROM watching WHERE user_id = $1",
+    "SELECT count(*)::int AS n FROM watching WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))",
     `SELECT title, started_at AS "startedAt", false AS seen
        FROM watching
-      WHERE user_id = $1
+      WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))
       ORDER BY started_at DESC, title_id
-      LIMIT $2 OFFSET $3`,
-    [req.user!.id],
+      LIMIT $3 OFFSET $4`,
+    [req.user!.id, await serviceFilter(req)],
   );
 });
 
@@ -245,14 +333,14 @@ libraryRouter.get("/history", async (req, res) => {
   await sendPage(
     req,
     res,
-    "SELECT count(*)::int AS n FROM history WHERE user_id = $1",
+    "SELECT count(*)::int AS n FROM history WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))",
     `SELECT h.id, h.title, h.picked_at AS "pickedAt", (s.title_id IS NOT NULL) AS seen
        FROM history h
        LEFT JOIN seen s ON s.user_id = h.user_id AND s.title_id = h.title_id
-      WHERE h.user_id = $1
+      WHERE h.user_id = $1 AND ($2::text[] IS NULL OR h.title_id = ANY($2))
       ORDER BY h.picked_at DESC, h.id DESC
-      LIMIT $2 OFFSET $3`,
-    [req.user!.id],
+      LIMIT $3 OFFSET $4`,
+    [req.user!.id, await serviceFilter(req)],
   );
 });
 
@@ -300,13 +388,13 @@ libraryRouter.get("/seen", async (req, res) => {
   await sendPage(
     req,
     res,
-    "SELECT count(*)::int AS n FROM seen WHERE user_id = $1 AND title IS NOT NULL",
+    "SELECT count(*)::int AS n FROM seen WHERE user_id = $1 AND title IS NOT NULL AND ($2::text[] IS NULL OR title_id = ANY($2))",
     `SELECT s.title, s.seen_at AS "seenAt", true AS seen
        FROM seen s
-      WHERE s.user_id = $1 AND s.title IS NOT NULL
+      WHERE s.user_id = $1 AND s.title IS NOT NULL AND ($2::text[] IS NULL OR s.title_id = ANY($2))
       ORDER BY s.seen_at DESC, s.title_id
-      LIMIT $2 OFFSET $3`,
-    [userId],
+      LIMIT $3 OFFSET $4`,
+    [userId, await serviceFilter(req)],
   );
 });
 
