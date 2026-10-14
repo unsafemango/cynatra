@@ -1,22 +1,36 @@
 "use client";
 
-import { RATING_SOURCES, useRatingSource, type RatingSource } from "@/lib/ratings";
+import { useRatingSource, type RatingSource } from "@/lib/ratings";
+import { SourceBadge } from "./Rating";
+import { Select, type SelectOption } from "./Select";
+
+const OPTIONS: SelectOption<RatingSource>[] = [
+  {
+    value: "imdb",
+    label: "IMDb rating",
+    icon: <SourceBadge source="imdb" />,
+    description: "From IMDb users (default)",
+  },
+  {
+    value: "tmdb",
+    label: "TMDB score",
+    icon: <SourceBadge source="tmdb" />,
+    description: "From The Movie Database community",
+  },
+];
 
 /** Choose which rating the site shows (IMDb by default). */
-export function RatingSourcePicker({ id, className = "" }: { id: string; className?: string }) {
+export function RatingSourcePicker({ id, size = "md" }: { id: string; size?: "md" | "sm" }) {
   const [source, setSource] = useRatingSource();
   return (
-    <select
+    <Select
       id={id}
       value={source}
-      onChange={(e) => setSource(e.target.value as RatingSource)}
-      className={`rounded-lg border border-border bg-surface px-2 py-1 text-foreground hover:border-muted focus:border-accent focus:outline-none ${className}`}
-    >
-      {RATING_SOURCES.map((s) => (
-        <option key={s.value} value={s.value}>
-          {s.label}
-        </option>
-      ))}
-    </select>
+      onChange={setSource}
+      options={OPTIONS}
+      size={size}
+      align={size === "sm" ? "end" : "start"}
+      className={size === "md" ? "w-full sm:max-w-xs" : ""}
+    />
   );
 }

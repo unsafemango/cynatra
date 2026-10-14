@@ -1,18 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, Spinner } from "@/components/icons";
+import { CheckIcon, LockIcon, Spinner } from "@/components/icons";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { Select, type SelectOption } from "@/components/Select";
 
-// Must match the gateway's SUPPORT_TOPICS.
+// Values must match the gateway's SUPPORT_TOPICS.
 const TOPICS = [
-  "Account & sign-in",
-  "Spins & recommendations",
-  "Something isn't working",
-  "Feature idea",
-  "Other",
+  { value: "Account & sign-in", icon: "🔐", description: "Logging in, sign-up codes, Google sign-in" },
+  { value: "Spins & recommendations", icon: "🎲", description: "Picks, filters, ratings, where to watch" },
+  { value: "Something isn't working", icon: "🐞", description: "Errors or things that look wrong" },
+  { value: "Feature idea", icon: "💡", description: "Something you'd like Cynatra to do" },
+  { value: "Other", icon: "💬", description: "Anything else" },
 ] as const;
+type Topic = (typeof TOPICS)[number]["value"];
+
+const TOPIC_OPTIONS: SelectOption<Topic>[] = TOPICS.map((t) => ({
+  value: t.value,
+  label: t.value,
+  icon: (
+    <span className="text-base leading-none" aria-hidden>
+      {t.icon}
+    </span>
+  ),
+  description: t.description,
+}));
 
 const MAX_MESSAGE = 5000;
 
@@ -23,15 +36,15 @@ const field =
 export function ContactForm() {
   const { user } = useAuth();
   const [name, setName] = useState("");
-  // Logged in: start from the account's email (still editable).
-  const [email, setEmail] = useState<string | null>(null);
-  const [topic, setTopic] = useState<(typeof TOPICS)[number]>(TOPICS[0]);
+  // Logged-out visitors type an email; logged in, replies go to the account's.
+  const [typedEmail, setTypedEmail] = useState("");
+  const [topic, setTopic] = useState<Topic>(TOPICS[0].value);
   const [message, setMessage] = useState("");
   const [website, setWebsite] = useState(""); // honeypot
   const [state, setState] = useState<{ kind: "idle" | "sending" | "sent" } | { kind: "error"; message: string }>({
     kind: "idle",
   });
-  const emailValue = email ?? user?.email ?? "";
+  const emailValue = user?.email ?? typedEmail;
   const sending = state.kind === "sending";
 
   const submit = async (e: React.FormEvent) => {
@@ -40,7 +53,14 @@ export function ContactForm() {
     try {
       await api("/api/support", {
         method: "POST",
-        body: JSON.stringify({ name: name || undefined, email: emailValue, topic, message, website }),
+        // Logged in, the server uses the account's email.
+        body: JSON.stringify({
+          name: name || undefined,
+          email: user ? undefined : typedEmail,
+          topic,
+          message,
+          website,
+        }),
       });
       setState({ kind: "sent" });
     } catch (err) {
@@ -86,34 +106,47 @@ export function ContactForm() {
             className={field}
           />
         </label>
-        <label className="block text-sm">
-          <span className="mb-1.5 block text-muted">Your email</span>
-          <input
-            type="email"
-            required
-            value={emailValue}
-            onChange={(e) => setEmail(e.target.value)}
-            maxLength={254}
-            autoComplete="email"
-            disabled={sending}
-            className={field}
-          />
-        </label>
+        {user ? (
+          <div className="block text-sm">
+            <span className="mb-1.5 block text-muted">Your email</span>
+            <p
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/60 px-3.5 py-3 text-foreground/90"
+              title="Replies go to the email on your account"
+            >
+              <LockIcon width={16} height={16} className="shrink-0 text-muted" />
+              <span className="truncate">{user.email}</span>
+            </p>
+          </div>
+        ) : (
+          <label className="block text-sm">
+            <span className="mb-1.5 block text-muted">Your email</span>
+            <input
+              type="email"
+              required
+              value={typedEmail}
+              onChange={(e) => setTypedEmail(e.target.value)}
+              maxLength={254}
+              autoComplete="email"
+              disabled={sending}
+              className={field}
+            />
+          </label>
+        )}
       </div>
 
-      <label className="block text-sm">
-        <span className="mb-1.5 block text-muted">Topic</span>
-        <select
+      {/* Not a <label>: clicks inside the open list would re-toggle the button. */}
+      <div className="text-sm">
+        <span id="support-topic-label" className="mb-1.5 block text-muted">
+          Topic
+        </span>
+        <Select
+          aria-labelledby="support-topic-label"
           value={topic}
-          onChange={(e) => setTopic(e.target.value as (typeof TOPICS)[number])}
+          onChange={setTopic}
+          options={TOPIC_OPTIONS}
           disabled={sending}
-          className={field}
-        >
-          {TOPICS.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-      </label>
+        />
+      </div>
 
       <label className="block text-sm">
         <span className="mb-1.5 flex justify-between text-muted">

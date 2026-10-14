@@ -15,7 +15,8 @@ export const SUPPORT_TOPICS = [
 
 const supportRequest = z.object({
   name: z.string().trim().max(80).optional(),
-  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(254),
+  // Logged-out visitors only; logged in, replies go to the account's email.
+  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(254).optional(),
   topic: z.enum(SUPPORT_TOPICS, { error: "Choose a topic." }),
   message: z.string().trim().min(10, "Tell us a little more (at least 10 characters).").max(5000),
   // Honeypot: hidden from people, filled in by bots.
@@ -51,7 +52,13 @@ supportRouter.post("/", async (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Please check the form." });
     return;
   }
-  const { website, ...message } = parsed.data;
+  const { website, email: typedEmail, ...rest } = parsed.data;
+  const email = req.user?.email ?? typedEmail;
+  if (!email) {
+    res.status(400).json({ error: "Enter your email so we can reply." });
+    return;
+  }
+  const message = { ...rest, email };
   // Bots get the same answer as people, so they don't learn to skip the field.
   if (website) {
     res.status(202).json({ ok: true });

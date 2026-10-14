@@ -20,7 +20,7 @@ export function Footer() {
         </nav>
         <label htmlFor="footer-rating" className="flex items-center gap-2">
           Ratings from
-          <RatingSourcePicker id="footer-rating" />
+          <RatingSourcePicker id="footer-rating" size="sm" />
         </label>
       </div>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-6 space-y-1.5">

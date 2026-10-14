@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { RatingSourcePicker } from "@/components/RatingSourcePicker";
+import { Select, type SelectOption } from "@/components/Select";
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { CheckIcon, ListIcon, PlayIcon, EyeCheckIcon, Spinner } from "@/components/icons";
 import { LogoMark } from "@/components/Logo";
@@ -30,6 +31,13 @@ const REGIONS = [
 
 // "US" → 🇺🇸 (regional indicator letters).
 const flag = (code: string) => String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0)));
+
+const REGION_OPTIONS: SelectOption<string>[] = REGIONS.map(([code, name]) => ({
+  value: code,
+  label: name,
+  icon: <span className="text-lg leading-none">{flag(code)}</span>,
+  keywords: code,
+}));
 
 type Counts = { watchlist: number; watching: number; seen: number; history: number };
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string };
@@ -159,19 +167,16 @@ export default function ProfilePage() {
           <label className="sr-only" htmlFor="profile-region">
             Country
           </label>
-          <select
+          <Select
             id="profile-region"
             value={user.region}
-            onChange={(e) => changeRegion(e.target.value)}
+            onChange={changeRegion}
+            options={REGION_OPTIONS}
+            searchable
+            searchPlaceholder="Search countries…"
             disabled={save.kind === "saving"}
-            className="w-full sm:max-w-xs rounded-xl border border-border bg-background/60 px-3.5 py-3 hover:border-muted/70 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 disabled:opacity-70"
-          >
-            {REGIONS.map(([code, name]) => (
-              <option key={code} value={code}>
-                {flag(code)} {name}
-              </option>
-            ))}
-          </select>
+            className="w-full sm:max-w-xs"
+          />
           <p aria-live="polite" className="min-h-5 text-sm">
             {save.kind === "saving" && (
               <span className="inline-flex items-center gap-2 text-muted">
@@ -197,10 +202,7 @@ export default function ProfilePage() {
           <label className="sr-only" htmlFor="profile-rating">
             Ratings from
           </label>
-          <RatingSourcePicker
-            id="profile-rating"
-            className="w-full sm:max-w-xs rounded-xl bg-background/60 px-3.5 py-3"
-          />
+          <RatingSourcePicker id="profile-rating" />
         </div>
       </section>
 
