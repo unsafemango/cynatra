@@ -120,9 +120,12 @@ export function FilterPanel({
 }) {
   // Filters tucked under "More filters"; the toggle shows how many are on so a
   // vibe that turns one on (e.g. Colourful fun → Look) is never invisible.
-  const hiddenActive = [filters.look === "colorful", Boolean(filters.maxRuntime), Boolean(filters.language)].filter(
-    Boolean,
-  ).length;
+  const hiddenActive = [
+    filters.look === "colorful",
+    Boolean(filters.maxRuntime),
+    Boolean(filters.language),
+    (filters.services?.length ?? 0) > 0,
+  ].filter(Boolean).length;
   const [showMore, setShowMore] = useState(hiddenActive > 0);
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const toggleGenre = (slug: string) =>
@@ -201,15 +204,6 @@ export function FilterPanel({
         <RatingSlider value={filters.minRating} onChange={(minRating) => set({ minRating })} />
       </Section>
 
-      <Section label="Streaming on" hint={servicesHint(filters.services ?? [], providers, regionLabel)}>
-        <StreamingFilter
-          options={providers}
-          selected={filters.services ?? []}
-          onChange={(services) => set({ services })}
-          myServices={myServices}
-        />
-      </Section>
-
       <div>
         <button
           className="text-sm text-muted hover:text-foreground"
@@ -221,6 +215,17 @@ export function FilterPanel({
         </button>
         {showMore && (
           <div className="mt-4 space-y-5">
+            <div>
+              <p className="text-xs text-muted mb-1.5">
+                Streaming on · {servicesHint(filters.services ?? [], providers, regionLabel)}
+              </p>
+              <StreamingFilter
+                options={providers}
+                selected={filters.services ?? []}
+                onChange={(services) => set({ services })}
+                myServices={myServices}
+              />
+            </div>
             <div>
               <p className="text-xs text-muted mb-1.5">
                 Look ·{" "}
