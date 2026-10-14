@@ -16,7 +16,9 @@ function track(path: string) {
   else stack.push(path);
 }
 
-/** Back link shown above every page except the spin page. */
+const NAV_PAGES = ["/", "/search", "/library", "/shortlist", "/login", "/register"];
+
+/** Back link shown above pages you drill into (titles, people, profile…), not nav-bar pages. */
 export function BackButton() {
   const pathname = usePathname();
   const router = useRouter();
@@ -25,7 +27,8 @@ export function BackButton() {
     track(pathname);
   }, [pathname]);
 
-  if (pathname === "/") return null;
+  // Pages in the nav bar are top-level: you get to them from the nav, not "back".
+  if (NAV_PAGES.includes(pathname)) return null;
 
   return (
     <Link

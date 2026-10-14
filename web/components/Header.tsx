@@ -129,10 +129,16 @@ function NavPlaceholder() {
 function AccountMenu({ email }: { email: string }) {
   const { logout } = useAuth();
   const pathname = usePathname();
-  // The page the menu was opened on: navigating anywhere closes it.
+  // The page the menu was opened on: it only shows there.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
   const setOpen = (o: boolean) => setOpenOn(o ? pathname : null);
+
+  // Any navigation closes it for good, so coming Back to that page doesn't
+  // find it still open.
+  useEffect(() => {
+    setOpenOn(null); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [pathname]);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const initial = email.trim().charAt(0).toUpperCase() || "?";
@@ -213,16 +219,16 @@ function AccountMenu({ email }: { email: string }) {
             </div>
           </div>
           <div className="p-1.5">
-            <Link href="/profile" role="menuitem" className={menuItem}>
+            <Link href="/profile" role="menuitem" onClick={() => setOpen(false)} className={menuItem}>
               Profile &amp; settings
             </Link>
-            <Link href="/library" role="menuitem" className={menuItem}>
+            <Link href="/library" role="menuitem" onClick={() => setOpen(false)} className={menuItem}>
               My library
             </Link>
-            <Link href="/services" role="menuitem" className={menuItem}>
+            <Link href="/services" role="menuitem" onClick={() => setOpen(false)} className={menuItem}>
               My streaming services
             </Link>
-            <Link href="/help" role="menuitem" className={menuItem}>
+            <Link href="/help" role="menuitem" onClick={() => setOpen(false)} className={menuItem}>
               Help &amp; support
             </Link>
           </div>
