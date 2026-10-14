@@ -1,6 +1,11 @@
 # Builds the web, gateway and picker images for ARM (the Oracle server) and
 # Intel, and pushes them to ghcr.io/<owner>/cynatra-<service> as `latest` and
 # `sha-<commit>`. Runs on every push to main, or by hand from the Actions tab.
+#
+# Each platform builds natively on its own runner (GitHub's free ARM runners
+# for arm64): emulating ARM with QEMU was slow and crashed the Next.js build
+# ("qemu: uncaught target signal 4"). The merge job then joins the two
+# per-platform images into one multi-arch tag.
 name: Images
 
 on:
@@ -15,14 +20,60 @@ permissions:
 
 jobs:
   build:
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [web, gateway, picker]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          platforms: linux/${{ matrix.arch }}
+          # Pushed by digest only; the merge job gives them their tags.
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/cynatra-${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
+          # Web: empty API URL, so the browser calls /api on the same domain.
+          build-args: |
+            NEXT_PUBLIC_API_URL=
+          cache-from: type=gha,scope=${{ matrix.service }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ matrix.arch }}
+      - name: Save the image digest
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.service }}-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         service: [web, gateway, picker]
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/cynatra-${{ matrix.service }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ matrix.service }}-*
+          merge-multiple: true
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -32,19 +83,16 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/cynatra-${{ matrix.service }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-
-      - uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.service }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Web: empty API URL, so the browser calls /api on the same domain.
-          build-args: |
-            NEXT_PUBLIC_API_URL=
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Create the multi-arch tags
+        working-directory: /tmp/digests
+        run: |
+          args=()
+          while read -r tag; do args+=(-t "$tag"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          for digest in *; do args+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${args[@]}"
+      - name: Check both platforms are there
+        run: docker buildx imagetools inspect "$IMAGE:latest"
