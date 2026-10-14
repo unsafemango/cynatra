@@ -6,8 +6,11 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { formatRuntime, toSlug, type LibraryStatus, type Provider, type Title } from "@/lib/api";
 import { providerUrl } from "@/lib/providers";
 import { Rating } from "./Rating";
+import { StableLabel } from "./StableLabel";
 
 const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
+
+const TRAILER_LABELS = ["▶ Trailer", "Hide trailer"] as const;
 
 const KIND_LABEL = { movie: "Movie", series: "Series", animation: "Animation" } as const;
 
@@ -142,7 +145,7 @@ export function ResultCard({
                 onClick={() => setShowTrailer((s) => !s)}
                 className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90"
               >
-                {showTrailer ? "Hide trailer" : "▶ Trailer"}
+                <StableLabel current={showTrailer ? "Hide trailer" : "▶ Trailer"} all={TRAILER_LABELS} />
               </button>
             )}
             {actions}

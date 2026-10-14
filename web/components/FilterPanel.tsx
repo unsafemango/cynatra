@@ -12,6 +12,27 @@ const TYPES: { value: PickType; label: string }[] = [
   { value: "animation", label: "Animation" },
 ];
 
+// Same labels as the picker's genre list; only used to size the loading placeholders.
+const GENRE_PLACEHOLDERS = [
+  "Action",
+  "Adventure",
+  "Comedy",
+  "Crime",
+  "Documentary",
+  "Drama",
+  "Family",
+  "Fantasy",
+  "History",
+  "Horror",
+  "Music",
+  "Mystery",
+  "Romance",
+  "Sci-Fi",
+  "Thriller",
+  "War",
+  "Western",
+];
+
 export const MOODS: { label: string; genres: string[]; look?: Filters["look"] }[] = [
   { label: "☕ Cozy", genres: ["comedy", "family", "romance"] },
   { label: "👻 Scary", genres: ["horror", "thriller", "mystery"] },
@@ -106,6 +127,17 @@ export function FilterPanel({
         }
       >
         <div className="flex flex-wrap gap-2">
+          {/* Placeholders the size of the real chips until the list arrives, so nothing below moves. */}
+          {genres.length === 0 &&
+            GENRE_PLACEHOLDERS.map((label) => (
+              <span
+                key={label}
+                aria-hidden
+                className="px-3.5 py-1.5 rounded-full text-sm border border-border bg-surface text-transparent animate-pulse"
+              >
+                {label}
+              </span>
+            ))}
           {genres.map((g) => (
             <Chip key={g.slug} active={filters.genres.includes(g.slug)} onClick={() => toggleGenre(g.slug)}>
               {g.label}
@@ -154,7 +186,9 @@ export function FilterPanel({
             <div>
               <p className="text-xs text-muted mb-1.5">
                 Look ·{" "}
-                {filters.look === "colorful" ? "vivid colours and bright scenes, judged from each title's images" : "any"}
+                {filters.look === "colorful"
+                  ? "vivid colours and bright scenes, judged from each title's images"
+                  : "any"}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Chip active={filters.look !== "colorful"} onClick={() => set({ look: "any" })}>

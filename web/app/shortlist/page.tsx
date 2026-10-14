@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Spinner } from "@/components/icons";
+import { StableLabel } from "@/components/StableLabel";
 import { ResultCard } from "@/components/ResultCard";
 import { TitleDetailsDialog } from "@/components/TitleDetailsDialog";
 import { api, type Title } from "@/lib/api";
@@ -190,19 +191,24 @@ export default function ShortlistPage() {
           )}
         </ul>
 
-        {loaded && items.length === 0 && (
-          <p className="mt-5 text-sm text-muted text-center">
-            Search above, or tap <span className="text-foreground">+ Shortlist</span> on a{" "}
-            <Link href="/" className="underline underline-offset-4 hover:text-foreground">
-              spin
-            </Link>{" "}
-            or in your{" "}
-            <Link href="/library" className="underline underline-offset-4 hover:text-foreground">
-              library
-            </Link>
-            .
-          </p>
-        )}
+        {/* Always one line here, so loading the saved shortlist doesn't move the buttons below. */}
+        <p className={`mt-5 min-h-5 text-sm text-muted text-center ${loaded ? "" : "invisible"}`}>
+          {items.length === 0 ? (
+            <>
+              Search above, or tap <span className="text-foreground">+ Shortlist</span> on a{" "}
+              <Link href="/" className="underline underline-offset-4 hover:text-foreground">
+                spin
+              </Link>{" "}
+              or in your{" "}
+              <Link href="/library" className="underline underline-offset-4 hover:text-foreground">
+                library
+              </Link>
+              .
+            </>
+          ) : (
+            "Tap a title for details, or × to remove it."
+          )}
+        </p>
 
         <div className="mt-7 flex flex-col items-center gap-4">
           <div role="radiogroup" aria-label="How to pick" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/60 p-1 text-sm">
@@ -284,7 +290,10 @@ export default function ShortlistPage() {
                         disabled={saved !== null}
                         className={secondaryBtn}
                       >
-                        {saved === "watchlist" ? "✓ On watchlist" : "+ Watchlist"}
+                        <StableLabel
+                          current={saved === "watchlist" ? "✓ On watchlist" : "+ Watchlist"}
+                          all={["+ Watchlist", "✓ On watchlist"]}
+                        />
                       </button>
                       <button
                         onClick={async () => {
@@ -294,7 +303,10 @@ export default function ShortlistPage() {
                         disabled={saved === "watching"}
                         className={secondaryBtn}
                       >
-                        {saved === "watching" ? "✓ Watching" : "▶ Start watching"}
+                        <StableLabel
+                          current={saved === "watching" ? "✓ Watching" : "▶ Start watching"}
+                          all={["▶ Start watching", "✓ Watching"]}
+                        />
                       </button>
                     </>
                   )}

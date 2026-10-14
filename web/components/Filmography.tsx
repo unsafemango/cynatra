@@ -175,7 +175,8 @@ function EpisodeLine({ creditIds }: { creditIds: string[] }) {
       live = false;
     };
   }, [creditIds]);
-  return text ? <p className="truncate text-xs text-muted/80">{text}</p> : null;
+  // The line is there from the start (empty until loaded), so the row doesn't grow.
+  return <p className="min-h-4 truncate text-xs text-muted/80">{text ?? ""}</p>;
 }
 
 const MAX_LISTED_EPISODES = 3;

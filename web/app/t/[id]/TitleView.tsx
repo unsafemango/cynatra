@@ -37,12 +37,15 @@ export function TitleView() {
           <TitleInfo title={title} />
         </>
       )}
-      <p className="text-center">
-        {/* Spins right away with the visitor's saved filters, skipping this title. */}
-        <Link href={`/?spin=1&skip=${id}`} className="text-muted hover:text-foreground">
-          Not feeling it? <span className="text-foreground">🎲 Spin for something else →</span>
-        </Link>
-      </p>
+      {/* Only once loaded: under the short placeholder it would be pushed down when the page arrives. */}
+      {current && (
+        <p className="text-center">
+          {/* Spins right away with the visitor's saved filters, skipping this title. */}
+          <Link href={`/?spin=1&skip=${id}`} className="text-muted hover:text-foreground">
+            Not feeling it? <span className="text-foreground">🎲 Spin for something else →</span>
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

@@ -5,11 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FilterPanel } from "@/components/FilterPanel";
 import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
+import { StableLabel } from "@/components/StableLabel";
 import { api, ApiError, fromSlug, type Filters, type Genre, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { localSeen } from "@/lib/library";
 
 const FILTERS_KEY = "cynatra:filters";
+const SPIN_LABELS = ["🎲 Spin", "Spinning…", "🎲 Spin again"] as const;
 const DEFAULT_FILTERS: Filters = { type: "any", genres: [], minRating: 6.5 };
 // Make the reel visible long enough to feel like a spin, even on cache hits.
 const MIN_SPIN_MS = 900;
@@ -165,7 +167,10 @@ export default function SpinPage() {
             disabled={loading}
             className="w-full sm:w-auto px-12 py-3.5 rounded-xl bg-accent text-white text-lg font-semibold shadow-lg shadow-accent/30 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60"
           >
-            {loading ? "Spinning…" : result && source === "filters" ? "🎲 Spin again" : "🎲 Spin"}
+            <StableLabel
+              current={loading ? "Spinning…" : result && source === "filters" ? "🎲 Spin again" : "🎲 Spin"}
+              all={SPIN_LABELS}
+            />
           </button>
           {user && (
             <button

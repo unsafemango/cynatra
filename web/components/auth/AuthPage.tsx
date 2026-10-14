@@ -48,7 +48,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
   // Set after "Create account": the address waiting for its emailed code.
   const [pending, setPending] = useState<{ email: string; resendAfterSeconds: number } | null>(null);
   // From the gateway; null hides the Google button.
-  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  // undefined while asking the gateway; null when Google sign-in isn't set up.
+  const [googleClientId, setGoogleClientId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     api<{ googleClientId: string | null }>("/api/auth/config")
@@ -226,6 +227,13 @@ export function AuthPage({ mode }: { mode: Mode }) {
         ))}
       </nav>
 
+      {googleClientId === undefined && (
+        // Holds the Google button's place while we find out, so the form doesn't drop.
+        <div className="mt-6" aria-hidden>
+          <div className="h-11 rounded-full bg-surface-2/70 animate-pulse" />
+          <div className="mt-6 h-4" />
+        </div>
+      )}
       {googleClientId && (
         <div className="mt-6">
           <GoogleSignIn

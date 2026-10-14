@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Pagination } from "@/components/Pagination";
 import { useRatingText } from "@/components/Rating";
+import { StableLabel } from "@/components/StableLabel";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
@@ -228,9 +229,10 @@ export default function LibraryPage() {
             >
               {t.label}
               {/* Counts only where there's room; four tabs just fit on a phone. */}
-              {counts && (
-                <span className="hidden sm:inline ml-1.5 text-xs tabular-nums text-muted">{counts[t.id]}</span>
-              )}
+              {/* Room for the count is kept before it loads, so the tabs don't widen. */}
+              <span className="hidden sm:inline-block ml-1.5 min-w-[2ch] text-left text-xs tabular-nums text-muted">
+                {counts ? counts[t.id] : ""}
+              </span>
             </button>
           ))}
         </div>
@@ -335,7 +337,7 @@ export default function LibraryPage() {
                           title={item.seen ? "Unmark as seen" : undefined}
                           className={`${btn} ${item.seen ? seenBtn : quietBtn}`}
                         >
-                          {item.seen ? "✓ Seen" : "Mark seen"}
+                          <StableLabel current={item.seen ? "✓ Seen" : "Mark seen"} all={["Mark seen", "✓ Seen"]} />
                         </button>
                         {(tab === "watchlist" || tab === "history") && (
                           <AddToShortlistButton title={item.title} className={`${btn} ${quietBtn}`} />

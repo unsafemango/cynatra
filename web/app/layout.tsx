@@ -31,7 +31,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           <ShortlistProvider>
             <Header />
-            <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            {/* At least a screen tall, so content arriving late never shoves a visible footer down. */}
+            <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 min-h-[calc(100dvh-3.5rem)]">
               {/* Reads the pathname, which is request-time data on dynamic routes. */}
               <Suspense fallback={null}>
                 <BackButton />
