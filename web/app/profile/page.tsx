@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { RatingSourcePicker } from "@/components/RatingSourcePicker";
 import { Select, type SelectOption } from "@/components/Select";
+import { ThemePicker } from "@/components/ThemeControls";
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { CheckIcon, ListIcon, PlayIcon, EyeCheckIcon, Spinner } from "@/components/icons";
 import { LogoMark } from "@/components/Logo";
@@ -165,12 +166,22 @@ export default function ProfilePage() {
               </span>
             )}
             {save.kind === "saved" && (
-              <span className="inline-flex items-center gap-1.5 text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 text-success">
                 <CheckIcon width={16} height={16} /> Saved
               </span>
             )}
             {save.kind === "error" && <span className="text-accent">{save.message}</span>}
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
+        <SectionTitle title="Appearance" hint="Light, dark, or match your device. Saved in this browser." />
+        <div className="mt-5">
+          <label className="sr-only" htmlFor="profile-theme">
+            Theme
+          </label>
+          <ThemePicker id="profile-theme" className="w-full sm:max-w-xs" />
         </div>
       </section>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoMark } from "./Logo";
 import { RatingSourcePicker } from "./RatingSourcePicker";
+import { ThemePicker } from "./ThemeControls";
 
 export function Footer() {
   return (
@@ -18,10 +19,16 @@ export function Footer() {
             Contact support
           </Link>
         </nav>
-        <label htmlFor="footer-rating" className="flex items-center gap-2">
-          Ratings from
-          <RatingSourcePicker id="footer-rating" size="sm" />
-        </label>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <label htmlFor="footer-theme" className="flex items-center gap-2">
+            Theme
+            <ThemePicker id="footer-theme" size="sm" />
+          </label>
+          <label htmlFor="footer-rating" className="flex items-center gap-2">
+            Ratings from
+            <RatingSourcePicker id="footer-rating" size="sm" />
+          </label>
+        </div>
       </div>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-6 space-y-1.5">
         {/* TMDB and IMDb attributions are required by their terms. */}

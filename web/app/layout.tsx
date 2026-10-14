@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { AuthProvider } from "@/lib/auth";
 import { ShortlistProvider } from "@/lib/shortlist";
+import { THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,7 +27,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    // suppressHydrationWarning: the theme script below may set data-theme before React loads.
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Applies a saved light/dark choice before the first paint, so it never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <ShortlistProvider>

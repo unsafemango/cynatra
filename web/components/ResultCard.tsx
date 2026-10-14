@@ -16,8 +16,8 @@ const KIND_LABEL = { movie: "Movie", series: "Series", animation: "Animation" } 
 
 const STATUS_TAG: Record<LibraryStatus, { label: string; className: string }> = {
   watchlist: { label: "🔖 On your watchlist", className: "border-accent-2/50 text-accent-2" },
-  watching: { label: "▶ Watching", className: "border-sky-400/50 text-sky-300" },
-  seen: { label: "✓ Seen", className: "border-emerald-400/50 text-emerald-300" },
+  watching: { label: "▶ Watching", className: "border-info/50 text-info" },
+  seen: { label: "✓ Seen", className: "border-success/50 text-success" },
 };
 
 export function ResultCard({

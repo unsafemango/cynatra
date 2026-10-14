@@ -366,7 +366,7 @@ function ServiceRow({
                 <li key={id} className="relative">
                   <PosterTile hit={t} sizes="(max-width: 640px) 30vw, 120px" />
                   {s.unique.includes(id) && (
-                    <span className="absolute left-1.5 top-1.5 rounded-full bg-accent-2 px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                    <span className="absolute left-1.5 top-1.5 rounded-full bg-accent-2 px-1.5 py-0.5 text-[10px] font-semibold text-background">
                       Only here
                     </span>
                   )}

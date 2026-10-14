@@ -27,7 +27,7 @@ export default function LoggedOutPage() {
   return (
     <div className="max-w-md mx-auto pt-6 sm:pt-12">
       <div className="rounded-3xl border border-border bg-surface px-6 py-10 sm:px-10 text-center shadow-2xl shadow-black/30">
-        <div className="mx-auto mb-6 grid size-16 place-items-center rounded-full bg-emerald-400/15 text-emerald-300 ring-8 ring-emerald-400/5">
+        <div className="mx-auto mb-6 grid size-16 place-items-center rounded-full bg-success/15 text-success ring-8 ring-success/5">
           <CheckIcon width={30} height={30} strokeWidth={2.4} />
         </div>
         <h1 role="status" className="text-2xl font-semibold tracking-tight">

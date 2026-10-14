@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Themes. Dark is the default; light applies when the visitor picks it
+   (data-theme="light" on <html>, set before the first paint by a script in
+   the layout) or, with "System", when their device prefers light. */
 :root {
   --background: #0b0a10;
   --surface: #15131d;
@@ -9,6 +12,39 @@
   --muted: #9b96ad;
   --accent: #ff5a5f;
   --accent-2: #ffb347;
+  --success: #6ee7b7;
+  --info: #7dd3fc;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --background: #f6f5fa;
+  --surface: #ffffff;
+  --surface-2: #eeecf4;
+  --border: #dedbe8;
+  --foreground: #17151f;
+  --muted: #625d75;
+  --accent: #dc3d43;
+  --accent-2: #a85f00;
+  --success: #047857;
+  --info: #0369a1;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --background: #f6f5fa;
+    --surface: #ffffff;
+    --surface-2: #eeecf4;
+    --border: #dedbe8;
+    --foreground: #17151f;
+    --muted: #625d75;
+    --accent: #dc3d43;
+    --accent-2: #a85f00;
+    --success: #047857;
+    --info: #0369a1;
+    color-scheme: light;
+  }
 }
 
 @theme inline {
@@ -20,6 +56,8 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-2: var(--accent-2);
+  --color-success: var(--success);
+  --color-info: var(--info);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

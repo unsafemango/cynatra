@@ -70,8 +70,8 @@ export function ContactForm() {
 
   if (state.kind === "sent") {
     return (
-      <div role="status" className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5">
-        <p className="flex items-center gap-2 font-medium text-emerald-300">
+      <div role="status" className="mt-6 rounded-2xl border border-success/30 bg-success/10 p-5">
+        <p className="flex items-center gap-2 font-medium text-success">
           <CheckIcon width={18} height={18} /> Message sent
         </p>
         <p className="mt-1 text-sm text-foreground/85">

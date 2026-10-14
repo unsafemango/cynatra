@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useShortlist } from "@/lib/shortlist";
 import { SearchIcon } from "./icons";
+import { ThemeToggle } from "./ThemeControls";
 import { Logo, LogoMark } from "./Logo";
 
 export function Header() {
@@ -51,6 +52,8 @@ function Nav() {
 
   return (
     <nav aria-label="Main" className="flex items-center gap-1 text-sm whitespace-nowrap">
+      {/* Laptops: one-click light/dark. Phones have it in the footer (no room here). */}
+      <ThemeToggle className="hidden sm:grid" />
       <NavLink href="/search" current={pathname === "/search"} label="Search">
         <SearchIcon width={16} height={16} />
         {/* Phones: icon only, so the rest of the nav still fits. */}

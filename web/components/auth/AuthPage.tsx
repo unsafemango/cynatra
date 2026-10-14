@@ -319,7 +319,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
                     <span
                       key={i}
                       className={`h-1 flex-1 rounded-full transition-colors ${
-                        strength >= i ? ["", "bg-accent", "bg-accent-2", "bg-emerald-400"][strength] : "bg-border"
+                        strength >= i ? ["", "bg-accent", "bg-accent-2", "bg-success"][strength] : "bg-border"
                       }`}
                     />
                   ))}
@@ -366,7 +366,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
 function Requirement({ met, children }: { met: boolean; children: ReactNode }) {
   return (
-    <li className={`flex items-center gap-1.5 ${met ? "text-emerald-300" : "text-muted"}`}>
+    <li className={`flex items-center gap-1.5 ${met ? "text-success" : "text-muted"}`}>
       {met ? <CheckIcon width={14} height={14} strokeWidth={2.4} /> : <span className="grid size-3.5 place-items-center">•</span>}
       <span>
         {children}
