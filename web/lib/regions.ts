@@ -24,3 +24,16 @@ export const regionName = (code: string) => REGIONS.find(([c]) => c === code)?.[
 
 // "US" -> 🇺🇸 (regional indicator letters).
 export const flag = (code: string) => String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0)));
+
+/**
+ * Best guess at a logged-out visitor's country from the browser's languages
+ * (e.g. "en-CA" -> "CA"); "US" when none is one we support.
+ */
+export function guessRegion(): string {
+  if (typeof navigator === "undefined") return "US";
+  for (const lang of navigator.languages ?? [navigator.language]) {
+    const region = lang.split("-")[1]?.toUpperCase();
+    if (region && REGIONS.some(([code]) => code === region)) return region;
+  }
+  return "US";
+}

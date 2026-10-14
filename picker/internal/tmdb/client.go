@@ -246,6 +246,27 @@ type Person struct {
 	} `json:"external_ids"`
 }
 
+// WatchProvider is a streaming service TMDB knows in a region.
+type WatchProvider struct {
+	ProviderID        int            `json:"provider_id"`
+	ProviderName      string         `json:"provider_name"`
+	LogoPath          string         `json:"logo_path"`
+	DisplayPriority   int            `json:"display_priority"`
+	DisplayPriorities map[string]int `json:"display_priorities"` // per region; lower is more prominent
+}
+
+// WatchProviders lists the streaming services for movies or series in a region.
+func (c *Client) WatchProviders(ctx context.Context, media, region string) ([]WatchProvider, error) {
+	var out struct {
+		Results []WatchProvider `json:"results"`
+	}
+	q := url.Values{"watch_region": {region}}
+	if err := c.get(ctx, "/watch/providers/"+media, q, detailsTTL, &out); err != nil {
+		return nil, err
+	}
+	return out.Results, nil
+}
+
 // Discover calls /discover/{movie|tv}. Results are cached by query.
 func (c *Client) Discover(ctx context.Context, media string, q url.Values) (*DiscoverPage, error) {
 	var page DiscoverPage

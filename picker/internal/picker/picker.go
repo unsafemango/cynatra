@@ -34,6 +34,10 @@ type Request struct {
 	Region     string   `json:"region"`     // ISO 3166-1, for where-to-watch
 	ExcludeIDs []string `json:"excludeIds"` // "movie:123", "tv:456"
 	Look       string   `json:"look"`       // "any" | "colorful" (bright & colourful)
+	// Only titles streaming on these services in Region (keys like "netflix").
+	Services []string `json:"services"`
+
+	providerIDs []int // Services as TMDB provider IDs, filled in by Pick
 }
 
 type Provider struct {
@@ -150,6 +154,14 @@ func Normalize(r *Request) error {
 		r.Region = "US"
 	}
 	r.Region = strings.ToUpper(r.Region)
+	if len(r.Services) > 30 {
+		return fmt.Errorf("too many services")
+	}
+	for _, k := range r.Services {
+		if !serviceKeyPattern.MatchString(k) {
+			return fmt.Errorf("unknown service %q", k)
+		}
+	}
 	return nil
 }
 
@@ -158,6 +170,13 @@ func Normalize(r *Request) error {
 func (p *Picker) Pick(ctx context.Context, r Request) (*Title, error) {
 	if err := Normalize(&r); err != nil {
 		return nil, err
+	}
+	if len(r.Services) > 0 {
+		ids, err := p.providerIDsFor(ctx, r.Services, r.Region)
+		if err != nil {
+			return nil, err
+		}
+		r.providerIDs = ids
 	}
 	excluded := make(map[string]bool, len(r.ExcludeIDs))
 	for _, id := range r.ExcludeIDs {
@@ -387,6 +406,16 @@ func buildQuery(a attempt, r Request) (url.Values, bool) {
 	}
 	if r.Language != "" {
 		q.Set("with_original_language", strings.ToLower(r.Language))
+	}
+	if len(r.providerIDs) > 0 {
+		// Streaming (not rent/buy) on any of the chosen services, in the user's country.
+		parts := make([]string, len(r.providerIDs))
+		for i, id := range r.providerIDs {
+			parts[i] = strconv.Itoa(id)
+		}
+		q.Set("watch_region", r.Region)
+		q.Set("with_watch_providers", strings.Join(parts, "|"))
+		q.Set("with_watch_monetization_types", "flatrate")
 	}
 	return q, true
 }

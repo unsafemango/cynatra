@@ -75,6 +75,15 @@ libraryRouter.get("/services", async (req, res) => {
 
 type Subscription = { key: string; price?: number };
 
+// Just the services the user pays for (the Spin page's "My services" shortcut).
+libraryRouter.get("/services/subscribed", async (req, res) => {
+  const { rows } = await pool!.query<{ streaming_services: Subscription[] }>(
+    "SELECT streaming_services FROM users WHERE id = $1",
+    [req.user!.id],
+  );
+  res.json({ subscribed: rows[0]?.streaming_services ?? [] });
+});
+
 const subscriptions = z.object({
   subscribed: z
     .array(

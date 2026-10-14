@@ -144,6 +144,9 @@ export type ServicesReport = {
 /** A service the user pays for, with an optional monthly price. */
 export type Subscription = { key: string; price?: number };
 
+/** A streaming service someone can filter spins by (GET /api/providers). */
+export type ProviderOption = { key: string; name: string; logo?: string };
+
 export type Genre = { slug: string; label: string };
 
 export type Filters = {
@@ -156,6 +159,8 @@ export type Filters = {
   language?: string;
   /** "colorful": only titles whose images look bright and colourful. */
   look?: "any" | "colorful";
+  /** Only titles streaming on these services (keys like "netflix") in the viewer's country. */
+  services?: string[];
 };
 
 export type User = {

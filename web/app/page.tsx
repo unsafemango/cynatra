@@ -6,7 +6,8 @@ import { FilterPanel } from "@/components/FilterPanel";
 import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
 import { StableLabel } from "@/components/StableLabel";
-import { api, ApiError, fromSlug, type Filters, type Genre, type Title } from "@/lib/api";
+import { api, ApiError, fromSlug, type Filters, type Genre, type ProviderOption, type Title } from "@/lib/api";
+import { flag, guessRegion, regionName } from "@/lib/regions";
 import { useAuth } from "@/lib/auth";
 import { localSeen } from "@/lib/library";
 
@@ -27,6 +28,12 @@ export default function SpinPage() {
   // True once saved filters (if any) are in state; URL-triggered spins wait for it.
   const [filtersReady, setFiltersReady] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
+  // Streaming services in the viewer's country, and the ones they pay for.
+  const [providers, setProviders] = useState<ProviderOption[] | null>(null);
+  const [myServices, setMyServices] = useState<string[]>([]);
+  // Logged out: a guess from the browser's languages (set after mount).
+  const [guessedRegion, setGuessedRegion] = useState("US");
+  const region = user?.region ?? guessedRegion;
   const [result, setResult] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,10 +68,27 @@ export default function SpinPage() {
     if (skip) shown.current.push(fromSlug(skip));
     if (location.search) history.replaceState(null, "", "/");
 
+    setGuessedRegion(guessRegion());
     api<Genre[]>("/api/genres")
       .then(setGenres)
       .catch((e) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    api<ProviderOption[]>(`/api/providers?region=${region}`)
+      .then((p) => !cancelled && setProviders(p))
+      .catch(() => !cancelled && setProviders([]));
+    if (user) {
+      api<{ subscribed: { key: string }[] }>("/api/me/services/subscribed")
+        .then((r) => !cancelled && setMyServices(r.subscribed.map((s) => s.key)))
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, region, user]);
 
   const updateFilters = (f: Filters) => {
     setFilters(f);
@@ -101,12 +125,13 @@ export default function SpinPage() {
         const excludeIds = [...shown.current.slice(-100), ...(user ? [] : localSeen().slice(-400))];
         const t = await api<Title>("/api/pick", {
           method: "POST",
-          body: JSON.stringify({ ...filters, excludeIds }),
+          // The country streaming availability (and the service filter) is for.
+          body: JSON.stringify({ ...filters, region, excludeIds }),
         });
         shown.current.push(t.id);
         return t;
       }),
-    [run, filters, user],
+    [run, filters, user, region],
   );
 
   const spinWatchlist = useCallback(
@@ -160,7 +185,15 @@ export default function SpinPage() {
       </section>
 
       <section className="rounded-2xl border border-border bg-surface/60 p-5 sm:p-7">
-        <FilterPanel key={restoredFilters ? "restored" : "default"} filters={filters} genres={genres} onChange={updateFilters} />
+        <FilterPanel
+          key={restoredFilters ? "restored" : "default"}
+          filters={filters}
+          genres={genres}
+          providers={providers}
+          myServices={myServices}
+          regionLabel={`${flag(region)} ${regionName(region)}`}
+          onChange={updateFilters}
+        />
         <div className="mt-7 flex flex-col items-center gap-3">
           <button
             onClick={spin}

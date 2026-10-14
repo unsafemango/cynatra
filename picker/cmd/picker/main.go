@@ -113,6 +113,20 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, a)
 	})
+	mux.HandleFunc("GET /providers", func(w http.ResponseWriter, r *http.Request) {
+		region := strings.ToUpper(orDefault(r.URL.Query().Get("region"), "US"))
+		if len(region) != 2 {
+			writeError(w, http.StatusBadRequest, "invalid region")
+			return
+		}
+		options, err := p.Providers(r.Context(), region)
+		if err != nil {
+			log.Printf("providers: %v", err)
+			writeError(w, http.StatusBadGateway, "Couldn't reach the movie database. Try again.")
+			return
+		}
+		writeJSON(w, http.StatusOK, options)
+	})
 	mux.HandleFunc("POST /services", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			IDs    []string `json:"ids"`
@@ -169,6 +183,8 @@ func main() {
 		switch {
 		case errors.Is(err, picker.ErrNoMatch):
 			writeError(w, http.StatusNotFound, "Nothing matches those filters. Try loosening them.")
+		case errors.Is(err, picker.ErrNoServices):
+			writeError(w, http.StatusNotFound, "None of those streaming services are available in your country. Pick others in the filters.")
 		case err != nil:
 			log.Printf("pick: %v", err)
 			writeError(w, http.StatusBadGateway, "Couldn't reach the movie database. Try again.")

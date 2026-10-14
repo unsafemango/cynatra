@@ -20,6 +20,15 @@ const pickRequest = z.object({
   excludeIds: z.array(titleId).max(500).default([]),
   excludeSeen: z.boolean().default(true),
   look: z.enum(["any", "colorful"]).default("any"),
+  // Only titles streaming on these services (keys like "netflix") in the region.
+  services: z.array(z.string().regex(/^[a-z0-9-]{1,60}$/, "Unknown streaming service")).max(30).default([]),
+});
+
+// Streaming services in a country, for the Spin page's "Streaming on" filter.
+pickRouter.get("/providers", async (req, res) => {
+  const region = /^[A-Za-z]{2}$/.test(String(req.query.region)) ? String(req.query.region).toUpperCase() : "US";
+  const { status, body } = await callPicker(`/providers?region=${region}`);
+  res.status(status).json(body);
 });
 
 pickRouter.get("/genres", async (_req, res) => {

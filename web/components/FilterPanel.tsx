@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Filters, Genre, PickType } from "@/lib/api";
+import type { Filters, Genre, PickType, ProviderOption } from "@/lib/api";
+import { StreamingFilter } from "./StreamingFilter";
 import { Chip } from "./Chip";
 import { YearFilter, yearHint } from "./YearFilter";
 
@@ -68,10 +69,19 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 export function FilterPanel({
   filters,
   genres,
+  providers,
+  myServices,
+  regionLabel,
   onChange,
 }: {
   filters: Filters;
   genres: Genre[];
+  /** Streaming services in the viewer's country (null while loading). */
+  providers: ProviderOption[] | null;
+  /** Services the user pays for (from the Services page). */
+  myServices: string[];
+  /** e.g. "🇨🇦 Canada": where the streaming filter applies. */
+  regionLabel: string;
   onChange: (f: Filters) => void;
 }) {
   // Filters tucked under "More filters"; the toggle shows how many are on so a
@@ -172,6 +182,15 @@ export function FilterPanel({
         </div>
       </Section>
 
+      <Section label="Streaming on" hint={servicesHint(filters.services ?? [], providers, regionLabel)}>
+        <StreamingFilter
+          options={providers}
+          selected={filters.services ?? []}
+          onChange={(services) => set({ services })}
+          myServices={myServices}
+        />
+      </Section>
+
       <div>
         <button
           className="text-sm text-muted hover:text-foreground"
@@ -268,4 +287,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   );
+}
+
+/** "Any service in 🇨🇦 Canada", "Netflix or Crave", "4 services". */
+function servicesHint(keys: string[], providers: ProviderOption[] | null, regionLabel: string) {
+  if (keys.length === 0) return `Any service in ${regionLabel}`;
+  const names = keys.map((k) => providers?.find((p) => p.key === k)?.name ?? k);
+  return names.length <= 2 ? names.join(" or ") : `${names.length} services`;
 }
