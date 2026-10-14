@@ -198,22 +198,7 @@ export function FilterPanel({
         label="Minimum IMDb rating"
         hint={filters.minRating ? `${filters.minRating.toFixed(1)}+ on IMDb` : "Any rating"}
       >
-        <input
-          type="range"
-          min={0}
-          max={9}
-          step={0.5}
-          value={filters.minRating}
-          onChange={(e) => set({ minRating: Number(e.target.value) })}
-          className="w-full accent-[var(--accent)]"
-          aria-label="Minimum IMDb rating"
-        />
-        <div className="flex justify-between text-xs text-muted mt-1">
-          <span>Any</span>
-          <span>5</span>
-          <span>7</span>
-          <span>9</span>
-        </div>
+        <RatingSlider value={filters.minRating} onChange={(minRating) => set({ minRating })} />
       </Section>
 
       <Section label="Streaming on" hint={servicesHint(filters.services ?? [], providers, regionLabel)}>
@@ -317,4 +302,45 @@ function servicesHint(keys: string[], providers: ProviderOption[] | null, region
   if (keys.length === 0) return `Any service in ${regionLabel}`;
   const names = keys.map((k) => providers?.find((p) => p.key === k)?.name ?? k);
   return names.length <= 2 ? names.join(" or ") : `${names.length} services`;
+}
+
+const RATING_MAX = 9;
+const THUMB = 18; // px, matches .rating-range in globals.css
+const RATING_TICKS = [0, 5, 6, 7, 8, 9];
+
+/** Where a value sits along the slider, as a CSS length (the thumb's centre never reaches the very edges). */
+const ratingPosition = (v: number) => {
+  const p = v / RATING_MAX;
+  return `calc(${p * 100}% + ${(0.5 - p) * THUMB}px)`;
+};
+
+/** Minimum IMDb rating, 0 ("Any") to 9 in half steps, with labels exactly under their values. */
+function RatingSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <input
+        type="range"
+        min={0}
+        max={RATING_MAX}
+        step={0.5}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label="Minimum IMDb rating"
+        aria-valuetext={value ? `${value.toFixed(1)} or higher on IMDb` : "Any rating"}
+        className="rating-range"
+        style={{ "--fill": ratingPosition(value) } as React.CSSProperties}
+      />
+      <div className="relative mt-1.5 h-4 text-xs text-muted" aria-hidden>
+        {RATING_TICKS.map((t) => (
+          <span
+            key={t}
+            className={`absolute top-0 -translate-x-1/2 tabular-nums ${value === t ? "text-foreground" : ""}`}
+            style={{ left: ratingPosition(t) }}
+          >
+            {t === 0 ? "Any" : t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
