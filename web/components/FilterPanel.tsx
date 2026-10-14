@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Filters, Genre, PickType, ProviderOption } from "@/lib/api";
 import { Select, type SelectOption } from "./Select";
 import { StreamingFilter } from "./StreamingFilter";
@@ -118,15 +117,6 @@ export function FilterPanel({
   regionLabel: string;
   onChange: (f: Filters) => void;
 }) {
-  // Filters tucked under "More filters"; the toggle shows how many are on so a
-  // vibe that turns one on (e.g. Colourful fun → Look) is never invisible.
-  const hiddenActive = [
-    filters.look === "colorful",
-    Boolean(filters.maxRuntime),
-    Boolean(filters.language),
-    (filters.services?.length ?? 0) > 0,
-  ].filter(Boolean).length;
-  const [showMore, setShowMore] = useState(hiddenActive > 0);
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const toggleGenre = (slug: string) =>
     set({
@@ -134,8 +124,8 @@ export function FilterPanel({
     });
 
   return (
-    <div className="space-y-6">
-      <Section label="What are you in the mood for?">
+    <div className="divide-y divide-border">
+      <Section label="What do you feel like?">
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
             <Chip key={t.value} active={filters.type === t.value} onClick={() => set({ type: t.value })}>
@@ -204,68 +194,53 @@ export function FilterPanel({
         <RatingSlider value={filters.minRating} onChange={(minRating) => set({ minRating })} />
       </Section>
 
-      <div>
-        <button
-          className="text-sm text-muted hover:text-foreground"
-          onClick={() => setShowMore((s) => !s)}
-          aria-expanded={showMore}
-        >
-          {showMore ? "▾" : "▸"} More filters
-          {hiddenActive > 0 && <span className="text-accent"> · {hiddenActive} on</span>}
-        </button>
-        {showMore && (
-          <div className="mt-4 space-y-5">
-            <div>
-              <p className="text-xs text-muted mb-1.5">
-                Streaming on · {servicesHint(filters.services ?? [], providers, regionLabel)}
-              </p>
-              <StreamingFilter
-                options={providers}
-                selected={filters.services ?? []}
-                onChange={(services) => set({ services })}
-                myServices={myServices}
-              />
-            </div>
-            <div>
-              <p className="text-xs text-muted mb-1.5">
-                Look ·{" "}
-                {filters.look === "colorful"
-                  ? "vivid colours and bright scenes, judged from each title's images"
-                  : "any"}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Chip active={filters.look !== "colorful"} onClick={() => set({ look: "any" })}>
-                  Any look
-                </Chip>
-                <Chip active={filters.look === "colorful"} onClick={() => set({ look: "colorful" })}>
-                  🦄 Bright &amp; colourful
-                </Chip>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:max-w-md sm:grid-cols-2">
-              <Field label="Length" id="filter-length">
-                <Select
-                  aria-labelledby="filter-length"
-                  value={String(filters.maxRuntime ?? 0)}
-                  onChange={(v) => set({ maxRuntime: Number(v) || undefined })}
-                  options={RUNTIME_OPTIONS}
-                />
-              </Field>
-              <Field label="Language" id="filter-language">
-                <Select
-                  aria-labelledby="filter-language"
-                  value={filters.language ?? ""}
-                  onChange={(v) => set({ language: v || undefined })}
-                  options={LANGUAGE_OPTIONS}
-                />
-              </Field>
-            </div>
-          </div>
-        )}
-      </div>
+      <Section label="Streaming on" hint={servicesHint(filters.services ?? [], providers, regionLabel)}>
+        <StreamingFilter
+          options={providers}
+          selected={filters.services ?? []}
+          onChange={(services) => set({ services })}
+          myServices={myServices}
+        />
+      </Section>
+
+      <Section
+        label="Look"
+        hint={filters.look === "colorful" ? "Vivid colours and bright scenes, judged from each title's images" : "Any"}
+      >
+        <div className="flex flex-wrap gap-2">
+          <Chip active={filters.look !== "colorful"} onClick={() => set({ look: "any" })}>
+            Any look
+          </Chip>
+          <Chip active={filters.look === "colorful"} onClick={() => set({ look: "colorful" })}>
+            🦄 Bright &amp; colourful
+          </Chip>
+        </div>
+      </Section>
+
+      <Section label="Length & language">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Length" id="filter-length">
+            <Select
+              aria-labelledby="filter-length"
+              value={String(filters.maxRuntime ?? 0)}
+              onChange={(v) => set({ maxRuntime: Number(v) || undefined })}
+              options={RUNTIME_OPTIONS}
+            />
+          </Field>
+          <Field label="Language" id="filter-language">
+            <Select
+              aria-labelledby="filter-language"
+              value={filters.language ?? ""}
+              onChange={(v) => set({ language: v || undefined })}
+              options={LANGUAGE_OPTIONS}
+            />
+          </Field>
+        </div>
+      </Section>
     </div>
   );
 }
+
 function Section({
   label,
   hint,
@@ -278,7 +253,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section>
+    <section className="py-5 first:pt-0 last:pb-0">
       <div className="flex items-baseline justify-between mb-2.5 gap-3">
         <h2 className="text-sm font-medium">
           {label} {hint && <span className="text-muted font-normal">· {hint}</span>}
@@ -348,4 +323,52 @@ function RatingSlider({ value, onChange }: { value: number; onChange: (v: number
       </div>
     </div>
   );
+}
+
+export type FilterChip = { id: string; label: string; remove: (f: Filters) => Filters };
+
+/**
+ * The filters that narrow a spin, as removable chips for the Spin page:
+ * "Series", "Comedy", "2010s", "7.0+ on IMDb", "Netflix", "Under 2 hours"…
+ */
+export function describeFilters(f: Filters, genres: Genre[], providers: ProviderOption[] | null): FilterChip[] {
+  const chips: FilterChip[] = [];
+  if (f.type !== "any") {
+    const label = TYPES.find((t) => t.value === f.type)?.label ?? f.type;
+    chips.push({ id: "type", label, remove: (x) => ({ ...x, type: "any" }) });
+  }
+  for (const slug of f.genres) {
+    const label = genres.find((g) => g.slug === slug)?.label ?? slug;
+    chips.push({ id: `genre:${slug}`, label, remove: (x) => ({ ...x, genres: x.genres.filter((g) => g !== slug) }) });
+  }
+  if (f.yearFrom || f.yearTo) {
+    chips.push({
+      id: "year",
+      label: yearHint(f),
+      remove: (x) => ({ ...x, yearFrom: undefined, yearTo: undefined }),
+    });
+  }
+  if (f.minRating > 0) {
+    chips.push({ id: "rating", label: `${f.minRating.toFixed(1)}+ on IMDb`, remove: (x) => ({ ...x, minRating: 0 }) });
+  }
+  for (const key of f.services ?? []) {
+    const label = providers?.find((p) => p.key === key)?.name ?? key;
+    chips.push({
+      id: `service:${key}`,
+      label: `On ${label}`,
+      remove: (x) => ({ ...x, services: (x.services ?? []).filter((k) => k !== key) }),
+    });
+  }
+  if (f.look === "colorful") {
+    chips.push({ id: "look", label: "🦄 Bright & colourful", remove: (x) => ({ ...x, look: "any" }) });
+  }
+  if (f.maxRuntime) {
+    const label = RUNTIMES.find(([m]) => m === f.maxRuntime)?.[1] ?? `Under ${f.maxRuntime} min`;
+    chips.push({ id: "runtime", label, remove: (x) => ({ ...x, maxRuntime: undefined }) });
+  }
+  if (f.language) {
+    const label = LANGUAGES.find(([c]) => c === f.language)?.[1] ?? f.language;
+    chips.push({ id: "language", label, remove: (x) => ({ ...x, language: undefined }) });
+  }
+  return chips;
 }

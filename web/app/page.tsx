@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FilterPanel } from "@/components/FilterPanel";
+import { describeFilters } from "@/components/FilterPanel";
+import { FiltersDrawer } from "@/components/FiltersDrawer";
 import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
 import { StableLabel } from "@/components/StableLabel";
@@ -22,9 +23,8 @@ type Source = "filters" | "watchlist";
 export default function SpinPage() {
   const { user, ready } = useAuth();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  // Remounts the filter panel once saved filters load, so its local UI state
-  // (e.g. which year mode is open) starts from them instead of the defaults.
-  const [restoredFilters, setRestoredFilters] = useState(false);
+  // The Filters panel (a draft of the filters until "Apply").
+  const [showFilters, setShowFilters] = useState(false);
   // True once saved filters (if any) are in state; URL-triggered spins wait for it.
   const [filtersReady, setFiltersReady] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -53,7 +53,6 @@ export default function SpinPage() {
       if (stored) {
         /* eslint-disable react-hooks/set-state-in-effect */
         setFilters({ ...DEFAULT_FILTERS, ...JSON.parse(stored) });
-        setRestoredFilters(true);
         /* eslint-enable react-hooks/set-state-in-effect */
       }
     } catch {
@@ -89,6 +88,8 @@ export default function SpinPage() {
       cancelled = true;
     };
   }, [ready, region, user]);
+
+  const chips = describeFilters(filters, genres, providers);
 
   const updateFilters = (f: Filters) => {
     setFilters(f);
@@ -177,35 +178,95 @@ export default function SpinPage() {
 
   return (
     <div className="space-y-10">
-      <section className="text-center pt-4 sm:pt-8">
+      <section className="text-center pt-4 sm:pt-10">
         <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">
           Stop scrolling. <span className="text-accent">Start watching.</span>
         </h1>
-        <p className="mt-3 text-muted">Set a few filters, hit Spin, and get one pick for tonight.</p>
+        <p className="mt-3 text-muted">Hit Spin for one pick tonight, or set a few filters first.</p>
       </section>
 
-      <section className="rounded-2xl border border-border bg-surface/60 p-5 sm:p-7">
-        <FilterPanel
-          key={restoredFilters ? "restored" : "default"}
-          filters={filters}
-          genres={genres}
-          providers={providers}
-          myServices={myServices}
-          regionLabel={`${flag(region)} ${regionName(region)}`}
-          onChange={updateFilters}
-        />
-        <div className="mt-7 flex flex-col items-center gap-3">
+      <section aria-label="Spin" className="mx-auto max-w-xl">
+        <div className="flex gap-3">
           <button
             onClick={spin}
             disabled={loading}
-            className="w-full sm:w-auto px-12 py-3.5 rounded-xl bg-accent text-white text-lg font-semibold shadow-lg shadow-accent/30 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60"
+            className="flex-1 px-6 py-4 rounded-2xl bg-accent text-white text-lg font-semibold shadow-lg shadow-accent/30 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60"
           >
             <StableLabel
               current={loading ? "Spinning…" : result && source === "filters" ? "🎲 Spin again" : "🎲 Spin"}
               all={SPIN_LABELS}
             />
           </button>
-          {user && (
+          <button
+            onClick={() => setShowFilters(true)}
+            aria-haspopup="dialog"
+            aria-label={`Filters${chips.length ? `, ${chips.length} active` : ""}`}
+            className="relative inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 sm:px-6 font-medium hover:border-muted transition-colors"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="M4 6h16M7 12h10M10 18h4" />
+            </svg>
+            <span className="hidden sm:inline">Filters</span>
+            {chips.length > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 grid min-w-5 h-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold text-white tabular-nums">
+                {chips.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* What the next spin is limited to; tap × to drop one. A line is kept even
+            before saved filters load, so the page doesn't move. */}
+        <div className={`mt-4 min-h-8 ${filtersReady ? "" : "invisible"}`}>
+          {chips.length === 0 ? (
+            <p className="text-center text-sm text-muted">
+              No filters: anything goes.{" "}
+              <button
+                onClick={() => setShowFilters(true)}
+                className="text-foreground underline-offset-4 hover:underline"
+              >
+                Add filters
+              </button>
+            </p>
+          ) : (
+            <ul className="flex flex-wrap justify-center gap-2" aria-label="Active filters">
+              {chips.map((c) => (
+                <li key={c.id}>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface py-1 pl-3 pr-1 text-sm">
+                    {c.label}
+                    <button
+                      onClick={() => updateFilters(c.remove(filters))}
+                      aria-label={`Remove filter: ${c.label}`}
+                      className="grid size-6 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </li>
+              ))}
+              <li>
+                <button
+                  onClick={() => updateFilters({ ...DEFAULT_FILTERS, minRating: 0 })}
+                  className="px-2 py-1 text-sm text-muted hover:text-foreground"
+                >
+                  Clear all
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
+
+        {user && (
+          <p className="mt-3 text-center">
             <button
               onClick={spinWatchlist}
               disabled={loading}
@@ -213,9 +274,25 @@ export default function SpinPage() {
             >
               or pick from my watchlist
             </button>
-          )}
-        </div>
+          </p>
+        )}
       </section>
+
+      {showFilters && (
+        <FiltersDrawer
+          filters={filters}
+          defaults={DEFAULT_FILTERS}
+          genres={genres}
+          providers={providers}
+          myServices={myServices}
+          regionLabel={`${flag(region)} ${regionName(region)}`}
+          onApply={(f) => {
+            updateFilters(f);
+            setShowFilters(false);
+          }}
+          onClose={() => setShowFilters(false)}
+        />
+      )}
 
       <div ref={resultRef} className="scroll-mt-20">
         {loading && (

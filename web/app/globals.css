@@ -170,6 +170,20 @@ body {
 }
 .animate-pop { animation: pop 0.12s ease-out both; }
 
+/* Filters panel: slides up from the bottom on phones, in from the right on wider screens. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes sheet-left {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.animate-sheet { animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (min-width: 640px) {
+  .animate-sheet { animation-name: sheet-left; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-reel, .animate-reveal, .animate-pop { animation: none; }
+  .animate-reel, .animate-reveal, .animate-pop, .animate-sheet { animation: none; }
 }
