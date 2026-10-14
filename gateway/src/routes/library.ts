@@ -120,7 +120,8 @@ const LIBRARY_SERVICES_TTL = 5 * 60 * 1000;
 const libraryServicesCache = new Map<string, { at: number; services: LibraryService[] }>();
 
 libraryRouter.use((req, _res, next) => {
-  if (req.method !== "GET") {
+  // A watchlist pick only adds a title that's already in the library to History.
+  if (req.method !== "GET" && req.path !== "/watchlist/pick") {
     for (const key of libraryServicesCache.keys()) if (key.startsWith(`${req.user!.id}:`)) libraryServicesCache.delete(key);
   }
   next();
@@ -246,13 +247,16 @@ libraryRouter.post("/watchlist/pick", async (req, res) => {
     return;
   }
   const userId = req.user!.id;
+  // ?service=netflix: only titles you can stream there (the Library's filter).
+  const onService = await serviceFilter(req);
   const unseen = `FROM watchlist w
      WHERE w.user_id = $1
+       AND ($2::text[] IS NULL OR w.title_id = ANY($2))
        AND NOT EXISTS (SELECT 1 FROM seen s WHERE s.user_id = w.user_id AND s.title_id = w.title_id)`;
 
   const { rows } = await pool!.query<{ title_id: string; title: unknown }>(
-    `SELECT w.title_id, w.title ${unseen} AND NOT (w.title_id = ANY($2::text[])) ORDER BY random() LIMIT 1`,
-    [userId, parsed.data.excludeIds],
+    `SELECT w.title_id, w.title ${unseen} AND NOT (w.title_id = ANY($3::text[])) ORDER BY random() LIMIT 1`,
+    [userId, onService, parsed.data.excludeIds],
   );
   if (rows[0]) {
     await refreshIMDb([rows[0].title]);
@@ -265,9 +269,14 @@ libraryRouter.post("/watchlist/pick", async (req, res) => {
     return;
   }
 
-  const { rows: count } = await pool!.query<{ n: number }>(`SELECT count(*)::int AS n ${unseen}`, [userId]);
+  const { rows: count } = await pool!.query<{ n: number }>(`SELECT count(*)::int AS n ${unseen}`, [userId, onService]);
   if (count[0].n === 0) {
-    res.status(404).json({ code: "empty", error: "Your watchlist has nothing unseen. Save a few picks first." });
+    res.status(404).json({
+      code: "empty",
+      error: onService
+        ? "Nothing unseen on your watchlist is on that service right now."
+        : "Your watchlist has nothing unseen. Save a few picks first.",
+    });
   } else {
     res.status(404).json({ code: "exhausted", error: "You've been through your whole watchlist." });
   }

@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Pagination } from "@/components/Pagination";
 import { Select, type SelectOption } from "@/components/Select";
+import { WatchlistPickDialog } from "@/components/WatchlistPickDialog";
 import { useRatingText } from "@/components/Rating";
 import { StableLabel } from "@/components/StableLabel";
 import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
@@ -58,6 +59,8 @@ export default function LibraryPage() {
   // Streaming-service filter: "all", or a service key like "netflix".
   const [service, setService] = useState("all");
   const [libServices, setLibServices] = useState<LibraryService[] | null>(null);
+  // "Pick one for me": picks from the watchlist right here, in a dialog.
+  const [picking, setPicking] = useState(false);
   // Item count per tab: labels the tabs and lets an empty tab show its empty
   // message right away instead of a loading placeholder.
   const [counts, setCounts] = useState<Record<Tab, number> | null>(null);
@@ -242,6 +245,7 @@ export default function LibraryPage() {
   const current = TABS.find((t) => t.id === tab)!;
   const knownEmpty = !items && !error && counts?.[tab] === 0;
   const showSkeleton = !items && !error && !knownEmpty && slowKey === loadKey;
+  const activeService = service === "all" ? null : (libServices?.find((x) => x.key === service) ?? null);
 
   return (
     <div>
@@ -267,12 +271,12 @@ export default function LibraryPage() {
           ))}
         </div>
         {tab === "watchlist" && data && data.total > 0 && (
-          <Link
-            href="/?from=watchlist"
+          <button
+            onClick={() => setPicking(true)}
             className="shrink-0 px-3 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:brightness-110"
           >
-            🎲 Pick one for me
-          </Link>
+            🎲 Pick one {activeService ? `on ${activeService.name}` : "for me"}
+          </button>
         )}
         {tab === "history" && items && items.length > 0 && (
           <button onClick={clearHistory} className="text-sm text-muted hover:text-foreground">
@@ -282,6 +286,15 @@ export default function LibraryPage() {
       </div>
 
       <ServiceFilter services={libServices} value={service} onChange={switchService} />
+
+      {picking && (
+        <WatchlistPickDialog
+          posters={(items ?? []).map((i) => i.title.posterUrl).filter((p): p is string => Boolean(p))}
+          service={activeService}
+          onClose={() => setPicking(false)}
+          onLibraryChange={() => setReload((n) => n + 1)}
+        />
+      )}
 
       <div ref={listTop} className="mt-6 scroll-mt-20">
         {notice && (
