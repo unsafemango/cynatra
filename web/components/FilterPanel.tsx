@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Filters, Genre, PickType, ProviderOption } from "@/lib/api";
+import { Select, type SelectOption } from "./Select";
 import { StreamingFilter } from "./StreamingFilter";
 import { Chip } from "./Chip";
 import { YearFilter, yearHint } from "./YearFilter";
@@ -57,12 +58,45 @@ const LANGUAGES = [
   ["zh", "Chinese"],
 ] as const;
 
+const RUNTIME_HINTS: Record<number, string> = {
+  0: "No limit",
+  90: "A quick one",
+  120: "A regular evening",
+  150: "Room for an epic",
+};
+
+const LANGUAGE_NATIVE: Record<string, string> = {
+  "": "Original language doesn't matter",
+  en: "English",
+  es: "Español",
+  fr: "Français",
+  de: "Deutsch",
+  it: "Italiano",
+  ja: "日本語",
+  ko: "한국어",
+  hi: "हिन्दी",
+  zh: "中文",
+};
+
 const RUNTIMES = [
   [0, "Any length"],
   [90, "Under 1h 30m"],
   [120, "Under 2 hours"],
   [150, "Under 2h 30m"],
 ] as const;
+
+const RUNTIME_OPTIONS: SelectOption<string>[] = RUNTIMES.map(([minutes, label]) => ({
+  value: String(minutes),
+  label,
+  description: RUNTIME_HINTS[minutes],
+}));
+
+const LANGUAGE_OPTIONS: SelectOption<string>[] = LANGUAGES.map(([code, label]) => ({
+  value: code,
+  label,
+  // The language's own name, unless it's the same as the English one.
+  description: LANGUAGE_NATIVE[code] !== label ? LANGUAGE_NATIVE[code] : undefined,
+}));
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -218,32 +252,22 @@ export function FilterPanel({
                 </Chip>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
-              <Field label="Length">
-                <select
-                  value={filters.maxRuntime ?? 0}
-                  onChange={(e) => set({ maxRuntime: Number(e.target.value) || undefined })}
-                  className={inputCls}
-                >
-                  {RUNTIMES.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid gap-3 sm:max-w-md sm:grid-cols-2">
+              <Field label="Length" id="filter-length">
+                <Select
+                  aria-labelledby="filter-length"
+                  value={String(filters.maxRuntime ?? 0)}
+                  onChange={(v) => set({ maxRuntime: Number(v) || undefined })}
+                  options={RUNTIME_OPTIONS}
+                />
               </Field>
-              <Field label="Language">
-                <select
+              <Field label="Language" id="filter-language">
+                <Select
+                  aria-labelledby="filter-language"
                   value={filters.language ?? ""}
-                  onChange={(e) => set({ language: e.target.value || undefined })}
-                  className={inputCls}
-                >
-                  {LANGUAGES.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => set({ language: v || undefined })}
+                  options={LANGUAGE_OPTIONS}
+                />
               </Field>
             </div>
           </div>
@@ -252,10 +276,6 @@ export function FilterPanel({
     </div>
   );
 }
-
-const inputCls =
-  "w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-muted";
-
 function Section({
   label,
   hint,
@@ -280,12 +300,15 @@ function Section({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// Not a <label>: a click inside an open Select list would re-toggle its button.
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="block text-xs text-muted mb-1">{label}</span>
+    <div>
+      <span id={id} className="block text-xs text-muted mb-1">
+        {label}
+      </span>
       {children}
-    </label>
+    </div>
   );
 }
 
