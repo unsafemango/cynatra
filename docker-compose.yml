@@ -21,7 +21,7 @@ services:
   # instead of being delivered. Point SMTP_URL at a real provider in production.
   mailpit:
     image: axllent/mailpit:latest
-    ports: ["8025:8025", "1025:1025"]
+    ports: ["127.0.0.1:8025:8025", "127.0.0.1:1025:1025"]
 
   redis:
     image: redis:7-alpine
