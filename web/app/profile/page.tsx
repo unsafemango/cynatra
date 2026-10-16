@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { loginHref } from "@/lib/after-login";
 import { RatingSourcePicker } from "@/components/RatingSourcePicker";
 import { Select, type SelectOption } from "@/components/Select";
 import { ThemePicker } from "@/components/ThemeControls";
@@ -66,10 +67,10 @@ export default function ProfilePage() {
           <h1 className="text-2xl font-semibold tracking-tight">Your profile lives here</h1>
           <p className="mt-2 text-muted">Log in to see your activity and choose your streaming country.</p>
           <div className="mt-8 grid gap-3">
-            <Link href="/login" className={primaryBtn}>
+            <Link href={loginHref("/profile")} className={primaryBtn}>
               Log in
             </Link>
-            <Link href="/register" className={secondaryBtn}>
+            <Link href={loginHref("/profile", "register")} className={secondaryBtn}>
               Create an account
             </Link>
           </div>

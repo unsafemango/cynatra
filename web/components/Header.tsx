@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { loginHref } from "@/lib/after-login";
 import { useShortlist } from "@/lib/shortlist";
 import { SearchIcon } from "./icons";
 import { ThemeToggle } from "./ThemeControls";
@@ -75,12 +76,12 @@ function Nav() {
           {shortlist}
           {/* Phones: no room; the Sign up page has a Log in tab. */}
           <span className="hidden sm:contents">
-            <NavLink href="/login" current={pathname === "/login"}>
+            <NavLink href={loginHref(pathname)} current={pathname === "/login"}>
               Log in
             </NavLink>
           </span>
           <Link
-            href="/register"
+            href={loginHref(pathname, "register")}
             className="ml-1 px-3 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110"
           >
             Sign up

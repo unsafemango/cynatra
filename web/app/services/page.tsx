@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { loginHref } from "@/lib/after-login";
 import { useEffect, useRef, useState } from "react";
 import { PosterTile } from "@/components/PosterTile";
 import { api, type ServicesReport, type StreamingService, type Subscription } from "@/lib/api";
@@ -50,7 +51,7 @@ export default function ServicesPage() {
           drop.
         </p>
         <Link
-          href="/login"
+          href={loginHref("/services")}
           className="mt-5 inline-block rounded-xl bg-accent px-5 py-2.5 font-medium text-white hover:brightness-110"
         >
           Log in

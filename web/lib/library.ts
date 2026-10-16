@@ -22,6 +22,15 @@ function writeLocalSeen(ids: string[]) {
   }
 }
 
+/** After their seen marks are copied to a new sign-in's account. */
+export function clearLocalSeen() {
+  try {
+    localStorage.removeItem(SEEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /** Pass the title when marking seen so it shows up on the Seen tab. */
 export async function markSeen(id: string, loggedIn: boolean, seen = true, title?: Title) {
   if (loggedIn) {

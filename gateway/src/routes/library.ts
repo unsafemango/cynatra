@@ -434,6 +434,26 @@ libraryRouter.put("/seen/:titleId", async (req, res) => {
   res.json({ ok: true });
 });
 
+// "Seen it" marks made while logged out (kept in the browser), copied to the
+// account on sign-in. Titles come later: the Seen tab fills in missing ones.
+libraryRouter.post("/seen/import", async (req, res) => {
+  const parsed = z.object({ ids: z.array(titleId).max(1000) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid title ids" });
+    return;
+  }
+  const ids = [...new Set(parsed.data.ids)];
+  if (ids.length > 0) {
+    await pool!.query(
+      `INSERT INTO seen (user_id, title_id) SELECT $1, unnest($2::text[])
+       ON CONFLICT (user_id, title_id) DO NOTHING`,
+      [req.user!.id, ids],
+    );
+    await pool!.query("DELETE FROM watching WHERE user_id = $1 AND title_id = ANY($2)", [req.user!.id, ids]);
+  }
+  res.json({ imported: ids.length });
+});
+
 libraryRouter.delete("/seen/:titleId", async (req, res) => {
   await pool!.query("DELETE FROM seen WHERE user_id = $1 AND title_id = $2", [req.user!.id, req.params.titleId]);
   res.json({ ok: true });

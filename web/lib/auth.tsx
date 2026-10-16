@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { markSavedAfterLogin, takePending } from "./after-login";
 import { api, getToken, setToken, type User } from "./api";
+import { addToWatchlist, clearLocalSeen, localSeen } from "./library";
 
 type AuthState = {
   user: User | null;
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify(body),
     });
     setToken(r.token);
+    await carryOverGuestActivity();
     setUser(r.user);
   }, []);
 
@@ -72,6 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser,
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/**
+ * Just signed in: save what the visitor did while logged out to the account.
+ * Runs before the user is set, so pages that then load the library see it.
+ * Failures don't block signing in.
+ */
+async function carryOverGuestActivity() {
+  const seen = localSeen();
+  const title = takePending();
+  await Promise.all([
+    seen.length > 0 &&
+      api("/api/me/seen/import", { method: "POST", body: JSON.stringify({ ids: seen }) })
+        .then(clearLocalSeen)
+        .catch((e) => console.warn("[cynatra] couldn't copy seen marks to the account", e)),
+    title &&
+      addToWatchlist(title)
+        .then(() => markSavedAfterLogin(title.id))
+        .catch((e) => console.warn("[cynatra] couldn't add the saved title to the watchlist", e)),
+  ]);
 }
 
 export function useAuth() {

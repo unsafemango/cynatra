@@ -13,6 +13,8 @@ import { useAuth } from "@/lib/auth";
 import { localSeen } from "@/lib/library";
 
 const FILTERS_KEY = "cynatra:filters";
+// The last result in this tab, so it's still there after going to log in and back.
+const LAST_SPIN_KEY = "cynatra:last-spin";
 const SPIN_LABELS = ["🎲 Spin", "Spinning…", "🎲 Spin again"] as const;
 const DEFAULT_FILTERS: Filters = { type: "any", genres: [], minRating: 6.5 };
 // Make the reel visible long enough to feel like a spin, even on cache hits.
@@ -39,6 +41,8 @@ export default function SpinPage() {
   const [error, setError] = useState<string | null>(null);
   // Where the current result came from, so Reroll stays in the same mode.
   const [source, setSource] = useState<Source>("filters");
+  // The result came back from LAST_SPIN_KEY: its library status may be stale.
+  const [restored, setRestored] = useState(false);
   // Titles shown this session per mode, so rerolls don't repeat.
   const shown = useRef<string[]>([]);
   const shownWatchlist = useRef<string[]>([]);
@@ -66,6 +70,20 @@ export default function SpinPage() {
     const skip = params.get("skip");
     if (skip) shown.current.push(fromSlug(skip));
     if (location.search) history.replaceState(null, "", "/");
+    if (!autoRun.current) {
+      try {
+        const last = JSON.parse(sessionStorage.getItem(LAST_SPIN_KEY) ?? "null");
+        if (last?.title?.id) {
+          const title: Title = { ...last.title, library: undefined };
+          setResult(title);
+          setSource(last.source === "watchlist" ? "watchlist" : "filters");
+          setRestored(true);
+          shown.current.push(title.id);
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     setGuessedRegion(guessRegion());
     api<Genre[]>("/api/genres")
@@ -112,6 +130,12 @@ export default function SpinPage() {
       await new Promise((r) => setTimeout(r, Math.max(0, MIN_SPIN_MS - (Date.now() - started))));
       setResult(t);
       setSource(from);
+      setRestored(false);
+      try {
+        sessionStorage.setItem(LAST_SPIN_KEY, JSON.stringify({ title: t, source: from }));
+      } catch {
+        // ignore
+      }
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -167,6 +191,7 @@ export default function SpinPage() {
   );
 
   const reroll = source === "watchlist" ? spinWatchlist : spin;
+  const rerollLabel = source === "watchlist" ? "Pick another" : "Spin again";
 
   useEffect(() => {
     if (!ready || !filtersReady || !autoRun.current) return;
@@ -309,29 +334,51 @@ export default function SpinPage() {
             <p className="text-lg">😶 {error}</p>
           </div>
         )}
-        {!loading && result && source === "watchlist" && (
-          <p className="mb-3 text-sm text-muted">
-            🎲 Picked from{" "}
-            <Link href="/library" className="text-foreground hover:underline underline-offset-4">
-              your watchlist
-            </Link>
-          </p>
-        )}
         {!loading && result && (
-          <TitleCard
-            key={result.id}
-            title={result}
-            // Spun from the watchlist, or already in the library: say so.
-            initialStatus={result.library ?? (source === "watchlist" ? "watchlist" : undefined)}
-            before={
-              <button onClick={reroll} className={actionBtn}>
-                ↻ Reroll
+          <>
+            {/* Right above the result, so another go is the obvious next step. */}
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="min-w-0 text-sm text-muted">
+                {source === "watchlist" ? (
+                  <>
+                    🎲 Picked from{" "}
+                    <Link href="/library" className="text-foreground hover:underline underline-offset-4">
+                      your watchlist
+                    </Link>
+                  </>
+                ) : (
+                  "🎲 Tonight's pick"
+                )}
+              </p>
+              <button onClick={reroll} className={rerollBtn} title="Not this one? Get another pick">
+                ↻ {rerollLabel}
               </button>
-            }
-            onSeen={reroll}
-          />
+            </div>
+            <TitleCard
+              key={result.id}
+              title={result}
+              // Spun from the watchlist, or already in the library: say so.
+              initialStatus={result.library ?? (source === "watchlist" ? "watchlist" : undefined)}
+              fetchStatus={restored}
+              onSeen={reroll}
+            />
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted">
+              <span>Not feeling it?</span>
+              <button onClick={reroll} className={actionBtn}>
+                ↻ {rerollLabel}
+              </button>
+              {source === "filters" && (
+                <button onClick={() => setShowFilters(true)} className={actionBtn}>
+                  Change filters
+                </button>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
+
+const rerollBtn =
+  "shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-accent/25 transition hover:brightness-110 active:scale-[0.98]";

@@ -18,6 +18,7 @@ import {
 } from "@/components/icons";
 import { LogoMark } from "@/components/Logo";
 import { VerifyEmailStep } from "@/components/VerifyEmailStep";
+import { loginHref, nextPath } from "@/lib/after-login";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -50,6 +51,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
   // From the gateway; null hides the Google button.
   // undefined while asking the gateway; null when Google sign-in isn't set up.
   const [googleClientId, setGoogleClientId] = useState<string | null | undefined>(undefined);
+  // Where to go once signed in (?next=, e.g. the page with the title they wanted to save).
+  const [next, setNext] = useState("/");
 
   useEffect(() => {
     api<{ googleClientId: string | null }>("/api/auth/config")
@@ -59,8 +62,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
   // Runs on arrival (and when this kept-alive page is shown again).
   useEffect(() => {
+    setNext(nextPath(location.search)); // eslint-disable-line react-hooks/set-state-in-effect
     if (carriedEmail) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEmail((cur) => cur || carriedEmail);
       carriedEmail = "";
     }
@@ -98,7 +101,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       setSigningIn("redirecting");
       setEmail("");
       setPassword("");
-      router.push("/");
+      router.push(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -114,7 +117,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       setSigningIn("redirecting");
       setEmail("");
       setPassword("");
-      router.push("/");
+      router.push(next);
     } catch (err) {
       setSigningIn(null);
       setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
@@ -154,8 +157,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
           <h1 className="text-2xl font-semibold tracking-tight">You&apos;re logged in</h1>
           <p className="mt-1 text-muted">as {user.email}</p>
           <div className="mt-8 grid gap-3">
-            <Link href="/" className={primaryBtn}>
-              🎲 Go spin
+            <Link href={next} className={primaryBtn}>
+              {next === "/" ? "🎲 Go spin" : "Continue"}
             </Link>
             <button onClick={logout} className={secondaryBtn}>
               Log out
@@ -181,7 +184,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
             setSigningIn("redirecting");
             setPending(null);
             setEmail("");
-            router.push("/");
+            router.push(next);
           }}
           onResend={() => resendCode(pending.email)}
           onChangeEmail={() => {
@@ -215,7 +218,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
         {(["login", "register"] as const).map((m) => (
           <Link
             key={m}
-            href={m === "login" ? "/login" : "/register"}
+            href={loginHref(next, m)}
             aria-current={mode === m ? "page" : undefined}
             onClick={() => (carriedEmail = email)}
             className={`rounded-lg py-2 text-center text-sm font-medium transition-colors ${
@@ -353,7 +356,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       <p className="mt-8 text-center text-sm text-muted">
         {isLogin ? "New to Cynatra?" : "Already have an account?"}{" "}
         <Link
-          href={isLogin ? "/register" : "/login"}
+          href={loginHref(next, isLogin ? "register" : "login")}
           onClick={() => (carriedEmail = email)}
           className="font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground"
         >

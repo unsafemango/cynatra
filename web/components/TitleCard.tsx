@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { ResultCard } from "@/components/ResultCard";
 import { StableLabel } from "@/components/StableLabel";
 import { useToast } from "@/components/Toast";
+import { loginHref, saveAfterLogin, takeSavedAfterLogin } from "@/lib/after-login";
 import { api, toSlug, type LibraryStatus, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { addToWatchlist, localSeen, markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
@@ -48,21 +49,40 @@ export function TitleCard({
   const busy = useRef(false);
   const [toast, notify] = useToast();
 
-  // Title pages: find out whether it's already in the library.
+  const router = useRouter();
+  const pathname = usePathname();
+  // Who the status was last looked up for; signing in or out looks it up again.
+  const statusFor = useRef<string | null | undefined>(ready ? (user?.id ?? null) : undefined);
+
+  // Find out whether it's already in the library: on title pages, and whenever
+  // someone signs in or out with the card on screen (e.g. back from logging in).
   useEffect(() => {
-    if (!fetchStatus || !ready) return;
+    if (!ready) return;
+    const who = user?.id ?? null;
+    const changed = statusFor.current !== who;
+    statusFor.current = who;
+    if (!fetchStatus && !changed) return;
     let live = true;
     if (user) {
+      // Added to the watchlist just now, as asked before logging in.
+      if (takeSavedAfterLogin(title.id)) notify("Added to your watchlist");
       api<{ status: LibraryStatus | null }>(`/api/me/status/${encodeURIComponent(title.id)}`)
         .then((r) => live && setStatus(r.status ?? undefined))
         .catch(() => {});
-    } else if (localSeen().includes(title.id)) {
-      setStatus("seen"); // eslint-disable-line react-hooks/set-state-in-effect
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus(localSeen().includes(title.id) ? "seen" : undefined);
     }
     return () => {
       live = false;
     };
-  }, [fetchStatus, ready, user, title.id]);
+  }, [fetchStatus, ready, user, title.id, notify]);
+
+  // Logged out: remember the title, log in, then it's added and they come back here.
+  const watchlistAfterLogin = () => {
+    saveAfterLogin(title);
+    router.push(loginHref(pathname));
+  };
 
   // Runs one library change; the result shows as a toast so nothing on the page moves.
   const run = async (change: () => Promise<unknown>, next: LibraryStatus | undefined, done?: string) => {
@@ -149,9 +169,13 @@ export function TitleCard({
               </button>
             </>
           ) : (
-            <Link href="/login" className={actionBtn}>
+            <button
+              onClick={watchlistAfterLogin}
+              title="Log in to save it to your watchlist"
+              className={actionBtn}
+            >
               + Watchlist
-            </Link>
+            </button>
           )}
           <AddToShortlistButton title={title} className={actionBtn} />
           <button

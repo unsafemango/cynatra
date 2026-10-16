@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { loginHref } from "@/lib/after-login";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Pagination } from "@/components/Pagination";
@@ -185,7 +186,7 @@ export default function LibraryPage() {
   if (ready && !user) {
     return (
       <p className="text-center text-muted pt-12">
-        <Link href="/login" className="text-foreground underline underline-offset-4">
+        <Link href={loginHref("/library")} className="text-foreground underline underline-offset-4">
           Log in
         </Link>{" "}
         to see your watchlist, what you&apos;re watching, and what you&apos;ve seen.

@@ -5,12 +5,10 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { Spinner } from "@/components/icons";
-import { StableLabel } from "@/components/StableLabel";
-import { ResultCard } from "@/components/ResultCard";
+import { TitleCard } from "@/components/TitleCard";
 import { TitleDetailsDialog } from "@/components/TitleDetailsDialog";
 import { api, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { addToWatchlist, startWatching } from "@/lib/library";
 import { SHORTLIST_MAX, useShortlist, type ShortlistItem } from "@/lib/shortlist";
 
 type Mode = "instant" | "knockout";
@@ -30,7 +28,6 @@ export default function ShortlistPage() {
   const [announce, setAnnounce] = useState("");
   const [result, setResult] = useState<Title | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<null | "watchlist" | "watching">(null);
   // The shortlisted title whose details are open.
   const [detailsFor, setDetailsFor] = useState<ShortlistItem | null>(null);
   // Bumped to cancel a running pick (leaving the page, picking again).
@@ -64,7 +61,6 @@ export default function ShortlistPage() {
     setWinnerId(null);
     setResult(null);
     setResultError(null);
-    setSaved(null);
     setAnnounce("Picking…");
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -276,44 +272,14 @@ export default function ShortlistPage() {
         <div ref={resultRef} className="scroll-mt-20 space-y-3">
           <p className="text-center text-sm text-muted">🏆 Tonight&apos;s pick</p>
           {result ? (
-            <ResultCard
+            <TitleCard
+              key={result.id}
               title={result}
-              actions={
-                <>
-                  {user && (
-                    <>
-                      <button
-                        onClick={async () => {
-                          await addToWatchlist(result).catch(() => {});
-                          setSaved("watchlist");
-                        }}
-                        disabled={saved !== null}
-                        className={secondaryBtn}
-                      >
-                        <StableLabel
-                          current={saved === "watchlist" ? "✓ On watchlist" : "+ Watchlist"}
-                          all={["+ Watchlist", "✓ On watchlist"]}
-                        />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await startWatching(result).catch(() => {});
-                          setSaved("watching");
-                        }}
-                        disabled={saved === "watching"}
-                        className={secondaryBtn}
-                      >
-                        <StableLabel
-                          current={saved === "watching" ? "✓ Watching" : "▶ Start watching"}
-                          all={["▶ Start watching", "✓ Watching"]}
-                        />
-                      </button>
-                    </>
-                  )}
-                  <button onClick={pick} className={secondaryBtn}>
-                    ↻ Pick again
-                  </button>
-                </>
+              fetchStatus
+              before={
+                <button onClick={pick} className={secondaryBtn}>
+                  ↻ Pick again
+                </button>
               }
             />
           ) : resultError ? (
