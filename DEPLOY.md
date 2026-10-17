@@ -261,14 +261,33 @@ certificate can take a minute.
 
 ## 10. Updating later
 
-Push to `main` → GitHub Actions builds new images → on the server:
+Push to `main`. GitHub Actions builds new images, and its **deploy** job then
+restarts web, gateway and picker on the server so they pull them (about 10
+minutes in all; watch it under the repo's **Actions** tab).
+
+The deploy job uses its own SSH key, which can only run the restart:
+
+1. Make a key pair just for GitHub: `ssh-keygen -t ed25519 -N "" -C github-actions-deploy -f deploy_key`
+2. On the server, save the restart script as `/usr/local/bin/cynatra-deploy`
+   (`kubectl -n cynatra rollout restart deploy/web deploy/gateway deploy/picker`,
+   then `rollout status` for each) and make it executable.
+3. Add the public key to the server's `~/.ssh/authorized_keys`, forced to that
+   script: `restrict,command="/usr/local/bin/cynatra-deploy" ssh-ed25519 AAAA… github-actions-deploy`
+4. Add two repo secrets (Settings → Secrets and variables → Actions):
+   `DEPLOY_SSH_KEY` (the private key file) and `DEPLOY_KNOWN_HOSTS`
+   (`ssh-keyscan -t ed25519 YOUR_SERVER_IP`). Then delete the local private key.
+
+To restart by hand instead:
 
 ```bash
-kubectl -n cynatra rollout restart deploy
+ssh ubuntu@YOUR_SERVER_IP 'kubectl -n cynatra rollout restart deploy/web deploy/gateway deploy/picker'
 ```
 
-If the manifests changed too, `git pull` in `~/cynatra` and run
-`kubectl apply -k k8s/` again first.
+If the manifests in `k8s/` changed, apply them from your laptop first:
+
+```bash
+kubectl kustomize k8s/ | ssh ubuntu@YOUR_SERVER_IP kubectl apply -f -
+```
 
 ## 11. Backups (recommended)
 

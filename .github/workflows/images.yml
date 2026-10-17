@@ -5,7 +5,8 @@
 # Each platform builds natively on its own runner (GitHub's free ARM runners
 # for arm64): emulating ARM with QEMU was slow and crashed the Next.js build
 # ("qemu: uncaught target signal 4"). The merge job then joins the two
-# per-platform images into one multi-arch tag.
+# per-platform images into one multi-arch tag, and the deploy job restarts the
+# app on the server so it pulls them.
 name: Images
 
 on:
@@ -96,3 +97,33 @@ jobs:
           docker buildx imagetools create "${args[@]}"
       - name: Check both platforms are there
         run: docker buildx imagetools inspect "$IMAGE:latest"
+
+  # Restart web, gateway and picker on the server so they pull the new images.
+  # The deploy key can only run /usr/local/bin/cynatra-deploy (forced command in
+  # the server's authorized_keys), so the command is whatever that script does.
+  # Changes under k8s/ are still applied by hand (DEPLOY.md, "Updating later").
+  deploy:
+    needs: merge
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: { group: deploy, cancel-in-progress: false }
+    env:
+      HOST: ubuntu@140.238.158.170
+    steps:
+      - name: Restart the services on the server
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Bots probing port 22 can get a new connection dropped: retry those
+          # (ssh exits 255), but not a failed deploy.
+          for i in 1 2 3 4 5; do
+            rc=0
+            ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o ConnectTimeout=20 "$HOST" || rc=$?
+            [ "$rc" -ne 255 ] && exit "$rc"
+            echo "Couldn't connect (attempt $i), retrying"; sleep 15
+          done
+          exit 1
