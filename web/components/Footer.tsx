@@ -24,6 +24,10 @@ export function Footer() {
           <Link href="/terms" className="hover:text-foreground hover:underline underline-offset-4">
             Terms
           </Link>
+          {/* TMDB and IMDb require their attribution; TMDB allows it on a credits page. */}
+          <Link href="/credits" className="hover:text-foreground hover:underline underline-offset-4">
+            Credits
+          </Link>
         </nav>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <label htmlFor="footer-theme" className="flex items-center gap-2">
@@ -35,27 +39,6 @@ export function Footer() {
             <RatingSourcePicker id="footer-rating" size="sm" />
           </label>
         </div>
-      </div>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-6 space-y-1.5">
-        {/* TMDB and IMDb attributions are required by their terms. */}
-        <p className="flex items-center gap-2">
-          <a
-            href="https://www.themoviedb.org"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-[#01b4e4]"
-          >
-            TMDB
-          </a>
-          This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming data by JustWatch.
-        </p>
-        <p>
-          IMDb ratings: information courtesy of{" "}
-          <a href="https://www.imdb.com" target="_blank" rel="noreferrer" className="hover:underline">
-            IMDb (https://www.imdb.com)
-          </a>
-          . Used with permission.
-        </p>
       </div>
     </footer>
   );

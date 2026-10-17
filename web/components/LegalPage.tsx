@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-/** Shared layout for the Privacy and Terms pages: a title, a date, then sections. */
+/** Shared layout for the Privacy, Terms and Credits pages: a title, then sections. */
 export function LegalPage({
   title,
   updated,
@@ -8,7 +8,8 @@ export function LegalPage({
   sections,
 }: {
   title: string;
-  updated: string;
+  /** Shown as "Last updated …" (legal pages). */
+  updated?: string;
   intro: React.ReactNode;
   sections: { heading: string; body: React.ReactNode }[];
 }) {
@@ -16,7 +17,7 @@ export function LegalPage({
     <article className="mx-auto max-w-3xl">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-        <p className="mt-1 text-sm text-muted">Last updated {updated}</p>
+        {updated && <p className="mt-1 text-sm text-muted">Last updated {updated}</p>}
         <div className="mt-4 text-[15px] leading-relaxed text-foreground/90">{intro}</div>
       </header>
       <div className="mt-8 space-y-7">
