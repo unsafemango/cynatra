@@ -12,6 +12,7 @@ resources:
   - picker.yaml
   - gateway.yaml
   - web.yaml
+  - redirect-https.yaml
   - ingress.yaml
 
 # Non-secret settings. The domain also appears in ingress.yaml.

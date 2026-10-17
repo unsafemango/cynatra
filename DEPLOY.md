@@ -112,6 +112,16 @@ ssh ubuntu@YOUR_SERVER_IP
 ```bash
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+```
+
+The same image also rejects traffic between containers, which breaks Kubernetes
+networking. Allow k3s's pod and service networks, drop the blanket `FORWARD`
+reject, and save so it all survives a reboot:
+
+```bash
+sudo iptables -I INPUT 6 -s 10.42.0.0/16 -j ACCEPT
+sudo iptables -I INPUT 6 -s 10.43.0.0/16 -j ACCEPT
+sudo iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited
 sudo netfilter-persistent save
 ```
 
@@ -146,6 +156,13 @@ curl -sfL https://get.k3s.io | sh -
 
 ```bash
 mkdir -p ~/.kube && sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && sudo chown $USER ~/.kube/config
+```
+
+k3s's `kubectl` reads its root-only `/etc/rancher/k3s/k3s.yaml` unless told
+otherwise, so point it at your copy (log out and back in afterwards):
+
+```bash
+echo "KUBECONFIG=$HOME/.kube/config" | sudo tee -a /etc/environment
 ```
 
 ```bash

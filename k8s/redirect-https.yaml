@@ -1,0 +1,10 @@
+# Sends plain http:// visitors to https:// (Traefik leaves HTTPS requests alone,
+# and cert-manager's renewal checks use their own route, so they still work).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
