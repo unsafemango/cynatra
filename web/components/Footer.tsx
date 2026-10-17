@@ -11,12 +11,18 @@ export function Footer() {
           <LogoMark size={16} />
           Cynatra — stop scrolling, start watching.
         </p>
-        <nav aria-label="Footer" className="flex items-center gap-4">
+        <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Link href="/help" className="hover:text-foreground hover:underline underline-offset-4">
             Help &amp; FAQ
           </Link>
           <Link href="/help#contact" className="hover:text-foreground hover:underline underline-offset-4">
             Contact support
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground hover:underline underline-offset-4">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-foreground hover:underline underline-offset-4">
+            Terms
           </Link>
         </nav>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
