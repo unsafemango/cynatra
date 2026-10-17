@@ -1,0 +1,81 @@
+# Nightly database backup to Oracle Object Storage (bucket cynatra-backups,
+# private, files deleted after 30 days by a lifecycle rule).
+#
+# 1. pg_dump writes a compressed dump to a scratch volume.
+# 2. The AWS CLI uploads it through Object Storage's S3-compatible API, using
+#    the `cynatra-backup` Oracle user, which may only add files to that bucket
+#    (it can't read, overwrite or delete). Its key is the `cynatra-backup-s3`
+#    secret, created on the server, never in git.
+#
+# Run one now:  kubectl -n cynatra create job --from=cronjob/postgres-backup backup-now
+# Restore:      DEPLOY.md, "11. Backups".
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+spec:
+  schedule: "30 3 * * *"
+  timeZone: America/Toronto
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 604800 # keep a finished job's pod (and logs) for a week
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: dump
+              emptyDir: {}
+          initContainers:
+            - name: dump
+              image: postgres:17-alpine # same major version as the database
+              env:
+                - { name: PGHOST, value: postgres }
+                - { name: PGUSER, value: cynatra }
+                - { name: PGDATABASE, value: cynatra }
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: cynatra-secrets, key: POSTGRES_PASSWORD } }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  name="cynatra-$(date -u +%Y-%m-%dT%H%MZ).sql.gz"
+                  # --clean --if-exists: a restore replaces the tables instead of clashing with them.
+                  pg_dump --no-owner --clean --if-exists | gzip -9 > "/dump/$name"
+                  # A dump of a working database is never this small: fail loudly instead of uploading junk.
+                  [ "$(stat -c %s "/dump/$name")" -gt 1000 ]
+                  echo "$name" > /dump/NAME
+                  ls -l /dump
+              volumeMounts:
+                - { name: dump, mountPath: /dump }
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+          containers:
+            - name: upload
+              image: amazon/aws-cli:2.37.11
+              envFrom:
+                - secretRef: { name: cynatra-backup-s3 }
+              env:
+                - { name: AWS_DEFAULT_REGION, value: ca-toronto-1 }
+                - { name: ENDPOINT, value: "https://yzdnqwl7ncdh.compat.objectstorage.ca-toronto-1.oraclecloud.com" }
+                # Oracle's S3 API doesn't support the CLI's newer default checksums.
+                - { name: AWS_REQUEST_CHECKSUM_CALCULATION, value: when_required }
+                - { name: AWS_RESPONSE_CHECKSUM_VALIDATION, value: when_required }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  name="$(cat /dump/NAME)"
+                  # Oracle wants https://endpoint/bucket/key rather than bucket.endpoint.
+                  aws configure set default.s3.addressing_style path
+                  aws s3 cp "/dump/$name" "s3://cynatra-backups/$name" --endpoint-url "$ENDPOINT" --no-progress
+                  echo "Uploaded $name"
+              volumeMounts:
+                - { name: dump, mountPath: /dump, readOnly: true }
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }

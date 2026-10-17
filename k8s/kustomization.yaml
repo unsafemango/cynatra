@@ -9,6 +9,7 @@ resources:
   - cluster-issuer.yaml
   - postgres.yaml
   - redis.yaml
+  - backup.yaml
   - picker.yaml
   - gateway.yaml
   - web.yaml

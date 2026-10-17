@@ -292,8 +292,58 @@ kubectl kustomize k8s/ | ssh ubuntu@YOUR_SERVER_IP kubectl apply -f -
 ## 11. Backups (recommended)
 
 Your accounts, watchlists and history live in Postgres on the server's disk.
-A nightly dump to Oracle's free **Object Storage** (20 GB free) protects them.
-A backup job isn't in the manifests yet.
+`k8s/backup.yaml` dumps the database every night at 3:30 (Toronto time) and
+uploads it to a private bucket in Oracle's free **Object Storage** (20 GB free),
+which survives even if the server doesn't. Files older than 30 days are deleted
+automatically, so there's always a month of daily restore points.
+
+**One-time setup** (OCI console or `oci` CLI):
+
+1. Create a private bucket `cynatra-backups` (Storage → Buckets).
+2. Add a lifecycle rule to it: delete objects with prefix `cynatra-` after 30
+   days. Rules need this policy first:
+   `Allow service objectstorage-YOUR_REGION to manage object-family in tenancy where target.bucket.name='cynatra-backups'`
+3. Create a user `cynatra-backup` in a group `cynatra-backup`, with a policy
+   that only lets it add files:
+   `Allow group cynatra-backup to manage objects in tenancy where all {target.bucket.name='cynatra-backups', any {request.permission='OBJECT_CREATE', request.permission='OBJECT_INSPECT'}}`
+4. Give that user a **Customer secret key** (user → Customer secret keys →
+   Generate). Store it on the server (new keys take a few minutes to work):
+
+```bash
+kubectl -n cynatra create secret generic cynatra-backup-s3 \
+  --from-literal=AWS_ACCESS_KEY_ID='...' \
+  --from-literal=AWS_SECRET_ACCESS_KEY='...'
+```
+
+5. Set your Object Storage namespace (`oci os ns get`) and region in the
+   `ENDPOINT` line of `k8s/backup.yaml`, then apply `k8s/` as usual.
+
+**Check on it:**
+
+```bash
+ssh ubuntu@YOUR_SERVER_IP 'kubectl -n cynatra get cronjob,jobs'
+```
+
+The backup files are listed under Storage → Buckets → `cynatra-backups`.
+To take one right now:
+
+```bash
+ssh ubuntu@YOUR_SERVER_IP 'kubectl -n cynatra create job --from=cronjob/postgres-backup backup-now'
+```
+
+**Restore** a backup (this replaces the live tables, so take a fresh backup
+first if the current data matters). From your laptop, with the `oci` CLI, pick a
+file name from the bucket:
+
+```bash
+oci os object get --bucket-name cynatra-backups --name cynatra-2026-10-17T2258Z.sql.gz --file - | ssh ubuntu@YOUR_SERVER_IP 'gunzip | kubectl -n cynatra exec -i postgres-0 -- psql -U cynatra -d cynatra -v ON_ERROR_STOP=1'
+```
+
+Then restart the gateway so it reconnects:
+
+```bash
+ssh ubuntu@YOUR_SERVER_IP 'kubectl -n cynatra rollout restart deploy/gateway'
+```
 
 ---
 
