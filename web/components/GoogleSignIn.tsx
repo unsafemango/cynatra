@@ -142,19 +142,32 @@ export function GoogleSignIn({
     };
   }, [clientId]);
 
+  // Google's button is an iframe: it takes up space before it has drawn anything.
+  // Keep the placeholder until the iframe has loaded, then fade the button in, so
+  // a reload shows placeholder → button, never an empty gap or a sudden pop-in.
   useEffect(() => {
     const el = slot.current;
     if (!el) return;
+    let showTimer: ReturnType<typeof setTimeout> | undefined;
+    const watched = new WeakSet<HTMLIFrameElement>();
+    const watchFrame = () => {
+      const frame = el.querySelector("iframe");
+      if (!frame || watched.has(frame)) return;
+      watched.add(frame);
+      // A moment after load, for Google to paint inside it; shown anyway if load never fires.
+      const show = () => {
+        clearTimeout(showTimer);
+        showTimer = setTimeout(() => setStatus("shown"), 120);
+      };
+      frame.addEventListener("load", show, { once: true });
+      showTimer = setTimeout(() => setStatus("shown"), 3000);
+    };
     // Keep watching even after "unavailable": a slow button can still show up.
-    const observer = new ResizeObserver(() => {
-      if (el.offsetHeight > 0) {
-        setStatus("shown");
-        observer.disconnect();
-      }
-    });
-    observer.observe(el);
+    const observer = new MutationObserver(watchFrame);
+    observer.observe(el, { childList: true, subtree: true });
+    watchFrame();
     const timeout = setTimeout(() => {
-      if (el.offsetHeight > 0) return;
+      if (el.querySelector("iframe")) return;
       setStatus((s) => (s === "loading" ? "unavailable" : s));
       console.warn(
         `[cynatra] Google's sign-in button didn't render. Check that GOOGLE_CLIENT_ID is a Web client ID and that ${location.origin} is listed under its Authorized JavaScript origins.`,
@@ -163,20 +176,36 @@ export function GoogleSignIn({
     return () => {
       observer.disconnect();
       clearTimeout(timeout);
+      clearTimeout(showTimer);
     };
   }, [clientId]);
 
   return (
     <div className="relative min-h-11">
-      {status === "loading" && (
-        <div className="absolute inset-0 rounded-full bg-surface-2 animate-pulse" aria-label="Loading Google sign-in" />
-      )}
+      {status === "loading" && <GoogleButtonPlaceholder />}
       {status === "unavailable" && (
         <p className="absolute inset-0 grid place-items-center text-sm text-muted text-center">
           Google sign-in isn&apos;t available right now. Use email below.
         </p>
       )}
-      <div ref={slot} className="flex justify-center [color-scheme:normal]" />
+      <div
+        ref={slot}
+        className={`flex justify-center transition-opacity duration-300 [color-scheme:normal] ${
+          status === "shown" ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+}
+
+/**
+ * Stands in for Google's button while it loads: the same pill, at the same
+ * width (Google draws it at most 400px wide, centred), so the swap is seamless.
+ */
+export function GoogleButtonPlaceholder() {
+  return (
+    <div className="absolute inset-0 flex justify-center" aria-label="Loading Google sign-in" role="status">
+      <div className="h-full w-full max-w-[400px] rounded-full bg-surface-2 animate-pulse" />
     </div>
   );
 }

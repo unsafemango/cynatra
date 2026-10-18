@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useLayoutEffect, useState, type ReactNode } from "react";
-import { GoogleSignIn } from "@/components/GoogleSignIn";
+import { GoogleButtonPlaceholder, GoogleSignIn } from "@/components/GoogleSignIn";
 import {
   AlertIcon,
   CheckIcon,
@@ -231,10 +231,17 @@ export function AuthPage({ mode }: { mode: Mode }) {
       </nav>
 
       {googleClientId === undefined && (
-        // Holds the Google button's place while we find out, so the form doesn't drop.
+        // Looks exactly like the Google button and divider below (Google sign-in is
+        // almost always on), so nothing changes when the answer comes back.
         <div className="mt-6" aria-hidden>
-          <div className="h-11 rounded-full bg-surface-2/70 animate-pulse" />
-          <div className="mt-6 h-4" />
+          <div className="relative h-11">
+            <GoogleButtonPlaceholder />
+          </div>
+          <div className="mt-6 flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" />
+            or continue with email
+            <span className="h-px flex-1 bg-border" />
+          </div>
         </div>
       )}
       {googleClientId && (
