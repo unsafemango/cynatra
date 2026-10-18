@@ -21,3 +21,17 @@ func TestAppendPopular(t *testing.T) {
 		t.Errorf("got %v, want %v", ids, want)
 	}
 }
+
+func TestAppendPeople(t *testing.T) {
+	seen := map[int]bool{}
+	ids := appendPeople(nil, seen, []tmdb.PopularPerson{
+		{ID: 287, ProfilePath: "/b.jpg"},
+		{ID: 2, ProfilePath: ""},                    // no photo
+		{ID: 3, ProfilePath: "/x.jpg", Adult: true}, // never listed
+		{ID: 287, ProfilePath: "/b.jpg"},            // repeated
+		{ID: 1245, ProfilePath: "/s.jpg"},
+	})
+	if want := []string{"287", "1245"}; !reflect.DeepEqual(ids, want) {
+		t.Errorf("got %v, want %v", ids, want)
+	}
+}

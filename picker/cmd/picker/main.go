@@ -167,11 +167,11 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, hits)
 	})
-	// Well-known titles for the web app's sitemap: ?media=movie|tv&pages=N (20 per page).
+	// Well-known titles or people for the web app's sitemap: ?media=movie|tv|person&pages=N (20 per page).
 	mux.HandleFunc("GET /popular", func(w http.ResponseWriter, r *http.Request) {
 		media := r.URL.Query().Get("media")
-		if media != "movie" && media != "tv" {
-			writeError(w, http.StatusBadRequest, "media must be movie or tv")
+		if media != "movie" && media != "tv" && media != "person" {
+			writeError(w, http.StatusBadRequest, "media must be movie, tv or person")
 			return
 		}
 		pages, err := strconv.Atoi(r.URL.Query().Get("pages"))

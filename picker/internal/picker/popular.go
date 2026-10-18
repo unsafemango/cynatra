@@ -15,7 +15,11 @@ const MaxPopularPages = 25
 // Popular lists well-known movies or series ("movie" or "tv"), most popular
 // first, as title IDs like "movie:550". The web app's sitemap uses it, so
 // search engines find the title pages people are most likely to look for.
+// For "person" it lists people instead, as TMDB person IDs like "287".
 func (p *Picker) Popular(ctx context.Context, media string, pages int) ([]string, error) {
+	if media == "person" {
+		return p.popularPeople(ctx, pages)
+	}
 	ids := []string{}
 	seen := map[int]bool{}
 	for page := 1; page <= pages; page++ {
@@ -49,6 +53,38 @@ func appendPopular(ids []string, seen map[int]bool, media string, results []tmdb
 		}
 		seen[r.ID] = true
 		ids = append(ids, fmt.Sprintf("%s:%d", media, r.ID))
+	}
+	return ids
+}
+
+func (p *Picker) popularPeople(ctx context.Context, pages int) ([]string, error) {
+	ids := []string{}
+	seen := map[int]bool{}
+	for page := 1; page <= pages; page++ {
+		res, err := p.tmdb.PopularPeople(ctx, page)
+		if err != nil {
+			if len(ids) > 0 {
+				break
+			}
+			return nil, err
+		}
+		ids = appendPeople(ids, seen, res.Results)
+		if page >= res.TotalPages {
+			break
+		}
+	}
+	return ids, nil
+}
+
+// appendPeople adds people with a photo (a page worth showing), never adult
+// performers, and each person once.
+func appendPeople(ids []string, seen map[int]bool, results []tmdb.PopularPerson) []string {
+	for _, r := range results {
+		if r.ProfilePath == "" || r.Adult || seen[r.ID] {
+			continue
+		}
+		seen[r.ID] = true
+		ids = append(ids, strconv.Itoa(r.ID))
 	}
 	return ids
 }

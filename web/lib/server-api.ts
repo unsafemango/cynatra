@@ -29,8 +29,8 @@ export async function getPerson(id: string): Promise<Person | null> {
   return getJSON<Person>(`/api/person/${id}`);
 }
 
-/** Well-known titles for the sitemap, as IDs like "movie:550". */
-export async function getPopular(media: "movie" | "tv", pages: number): Promise<string[]> {
+/** Well-known titles ("movie:550") or people ("287") for the sitemaps. */
+export async function getPopular(media: "movie" | "tv" | "person", pages: number): Promise<string[]> {
   "use cache";
   cacheLife("days");
   return (await getJSON<string[]>(`/api/popular?media=${media}&pages=${pages}`)) ?? [];

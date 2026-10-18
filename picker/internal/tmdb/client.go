@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -335,6 +336,30 @@ func (c *Client) Person(ctx context.Context, id int) (*Person, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// PopularPerson is one entry from /person/popular.
+type PopularPerson struct {
+	ID          int    `json:"id"`
+	ProfilePath string `json:"profile_path"`
+	Adult       bool   `json:"adult"`
+}
+
+// PeoplePage is a page of /person/popular.
+type PeoplePage struct {
+	Page       int             `json:"page"`
+	TotalPages int             `json:"total_pages"`
+	Results    []PopularPerson `json:"results"`
+}
+
+// PopularPeople lists the people TMDB users look at most (one page of 20).
+func (c *Client) PopularPeople(ctx context.Context, page int) (*PeoplePage, error) {
+	var out PeoplePage
+	q := url.Values{"page": {strconv.Itoa(page)}}
+	if err := c.get(ctx, "/person/popular", q, discoverTTL, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // Credit fetches a single credit by its ID (from a person's credits).
