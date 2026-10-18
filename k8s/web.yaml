@@ -25,6 +25,10 @@ spec:
           image: cynatra-web
           imagePullPolicy: Always
           ports: [{ containerPort: 3000 }]
+          env:
+            # Server-rendered pages (titles, people, the sitemap) call the gateway
+            # inside the cluster rather than going out and back in through the domain.
+            - { name: SERVER_API_URL, value: "http://gateway:4000" }
           readinessProbe:
             httpGet: { path: /, port: 3000 }
             periodSeconds: 10

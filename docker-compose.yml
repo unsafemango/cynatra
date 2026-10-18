@@ -68,6 +68,9 @@ services:
         # Baked into the browser bundle: the gateway URL as the *browser* sees it.
         NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
     ports: ["${WEB_PORT:-3000}:3000"]
+    environment:
+      # Server-rendered pages call the gateway directly.
+      SERVER_API_URL: http://gateway:4000
     depends_on:
       gateway: { condition: service_started }
 

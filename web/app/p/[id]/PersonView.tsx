@@ -1,14 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Filmography } from "@/components/Filmography";
 import { PosterTile } from "@/components/PosterTile";
 import { api, type Person } from "@/lib/api";
 
 const formatDate = (d: string) =>
-  new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+  new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 
 /** Whole years between two YYYY-MM-DD dates (to today when `to` is missing). */
 function age(from: string, to?: string) {
@@ -24,19 +23,23 @@ function age(from: string, to?: string) {
 // Long biographies start folded to about this many characters.
 const BIO_PREVIEW = 700;
 
-/** An actor or crew member: who they are, what they're known for, and everything they've been in. */
-export function PersonView() {
-  const { id } = useParams<{ id: string }>();
+/**
+ * An actor or crew member: who they are, what they're known for, and everything
+ * they've been in. `initial` is the server's render; without it (the server
+ * couldn't reach the API) it loads here.
+ */
+export function PersonView({ id, initial }: { id: string; initial: Person | null }) {
   // Keyed by ID, so moving between people shows the skeleton, not the previous person.
   const [loaded, setLoaded] = useState<{ id: string; person?: Person; error?: string } | null>(null);
 
   useEffect(() => {
+    if (initial) return;
     api<Person>(`/api/person/${id}`)
       .then((person) => setLoaded({ id, person }))
       .catch((e) => setLoaded({ id, error: e.message }));
-  }, [id]);
+  }, [id, initial]);
 
-  const current = loaded?.id === id ? loaded : null;
+  const current = initial ? { id, person: initial } : loaded?.id === id ? loaded : null;
   if (!current) return <div className="h-[360px] rounded-2xl bg-surface border border-border animate-pulse" />;
   if (current.error || !current.person) return <p className="text-center text-muted pt-12">{current.error}</p>;
   // Keyed so "Read more" and the filmography view reset for each person.

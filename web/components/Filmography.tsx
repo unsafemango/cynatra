@@ -11,7 +11,7 @@ type Kind = "all" | "movie" | "tv";
 type Sort = "popular" | "newest" | "az";
 
 const SORT_LABEL: Record<Sort, string> = { popular: "Most popular", newest: "Newest", az: "A–Z" };
-const byTitle = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+const byTitle = new Intl.Collator("en", { sensitivity: "base", numeric: true });
 
 const FIRST = 10; // rows shown at first
 const MORE = 20; // rows added per "Show more"

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Privacy policy — Cynatra",
+  title: "Privacy policy",
+  alternates: { canonical: "/privacy" },
   description: "What Cynatra stores about you, why, who else is involved, and how to delete it.",
 };
 

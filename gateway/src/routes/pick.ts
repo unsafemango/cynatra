@@ -48,6 +48,14 @@ pickRouter.get("/search", async (req, res) => {
   res.status(status).json(body);
 });
 
+// Well-known movies or series (title IDs), for the web app's sitemap.
+pickRouter.get("/popular", async (req, res) => {
+  const media = req.query.media === "tv" ? "tv" : "movie";
+  const pages = /^\d{1,2}$/.test(String(req.query.pages)) ? `&pages=${req.query.pages}` : "";
+  const { status, body } = await callPicker(`/popular?media=${media}${pages}`);
+  res.status(status).json(body);
+});
+
 // A single title; `/full` adds cast, crew, seasons and everything else for the title page.
 const getTitle = (full: boolean) => async (req: Request<{ media: string; id: string }>, res: Response) => {
   const { media, id } = req.params;

@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { AuthProvider } from "@/lib/auth";
 import { ShortlistProvider } from "@/lib/shortlist";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 
@@ -21,8 +22,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cynatra — stop scrolling, start watching",
-  description: "Set a few filters, hit Spin, and get one thing to watch tonight.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME}: what to watch tonight, in one spin`,
+    // Pages set their own title; the site name follows it.
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

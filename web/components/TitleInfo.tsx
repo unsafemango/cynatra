@@ -6,7 +6,7 @@ import type { FullTitle, PersonRef } from "@/lib/api";
 // Dates come as YYYY-MM-DD; formatting in UTC keeps them from shifting a day.
 const formatDate = (d?: string) =>
   d
-    ? new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })
+    ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })
     : undefined;
 
 const formatMoney = (n?: number) =>

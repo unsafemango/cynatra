@@ -6,8 +6,8 @@ metadata:
   name: cynatra
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
-    # <namespace>-<name>@kubernetescrd: the Middleware in redirect-https.yaml
-    traefik.ingress.kubernetes.io/router.middlewares: cynatra-redirect-https@kubernetescrd
+    # <namespace>-<name>@kubernetescrd: the Middlewares in redirect-https.yaml
+    traefik.ingress.kubernetes.io/router.middlewares: cynatra-redirect-https@kubernetescrd,cynatra-redirect-www@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:

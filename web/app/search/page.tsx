@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SearchView } from "./SearchView";
+
+export const metadata: Metadata = {
+  title: "Search movies & series",
+  robots: { index: false, follow: true },
+};
 
 export default function SearchPage() {
   // The query comes from the URL (request-time data), so the view renders inside Suspense.

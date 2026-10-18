@@ -3,7 +3,8 @@ import Link from "next/link";
 import { LegalPage } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Terms of service — Cynatra",
+  title: "Terms of service",
+  alternates: { canonical: "/terms" },
   description: "The rules for using Cynatra.",
 };
 

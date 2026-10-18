@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { ContactForm } from "./ContactForm";
 
 export const metadata: Metadata = {
-  title: "Help & support — Cynatra",
+  title: "Help & support",
+  alternates: { canonical: "/help" },
   description: "Answers to common questions about Cynatra, and a way to reach support.",
 };
 

@@ -167,6 +167,25 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, hits)
 	})
+	// Well-known titles for the web app's sitemap: ?media=movie|tv&pages=N (20 per page).
+	mux.HandleFunc("GET /popular", func(w http.ResponseWriter, r *http.Request) {
+		media := r.URL.Query().Get("media")
+		if media != "movie" && media != "tv" {
+			writeError(w, http.StatusBadRequest, "media must be movie or tv")
+			return
+		}
+		pages, err := strconv.Atoi(r.URL.Query().Get("pages"))
+		if err != nil || pages < 1 || pages > picker.MaxPopularPages {
+			pages = 10
+		}
+		ids, err := p.Popular(r.Context(), media, pages)
+		if err != nil {
+			log.Printf("popular: %v", err)
+			writeError(w, http.StatusBadGateway, "Couldn't list popular titles.")
+			return
+		}
+		writeJSON(w, http.StatusOK, ids)
+	})
 	mux.HandleFunc("POST /pick", func(w http.ResponseWriter, r *http.Request) {
 		var req picker.Request
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {

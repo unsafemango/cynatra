@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Credits — Cynatra",
+  title: "Credits",
+  alternates: { canonical: "/credits" },
   description: "Where Cynatra's movie and series data comes from.",
 };
 
