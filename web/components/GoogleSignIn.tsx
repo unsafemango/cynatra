@@ -181,8 +181,10 @@ export function GoogleSignIn({
   }, [clientId]);
 
   return (
-    <div className="relative min-h-11">
-      {status === "loading" && <GoogleButtonPlaceholder />}
+    // Exactly the button's height: while Google sets its button up, it briefly
+    // takes more room, which would push the form down and back up.
+    <div className="relative h-11">
+      {status !== "unavailable" && <GoogleButtonPlaceholder fading={status === "shown"} />}
       {status === "unavailable" && (
         <p className="absolute inset-0 grid place-items-center text-sm text-muted text-center">
           Google sign-in isn&apos;t available right now. Use email below.
@@ -190,7 +192,7 @@ export function GoogleSignIn({
       )}
       <div
         ref={slot}
-        className={`flex justify-center transition-opacity duration-300 [color-scheme:normal] ${
+        className={`absolute inset-0 flex justify-center overflow-hidden transition-opacity duration-300 [color-scheme:normal] ${
           status === "shown" ? "opacity-100" : "opacity-0"
         }`}
       />
@@ -201,10 +203,19 @@ export function GoogleSignIn({
 /**
  * Stands in for Google's button while it loads: the same pill, at the same
  * width (Google draws it at most 400px wide, centred), so the swap is seamless.
+ * `fading`: the button is in, so fade out underneath it.
  */
-export function GoogleButtonPlaceholder() {
+export function GoogleButtonPlaceholder({ fading = false }: { fading?: boolean }) {
   return (
-    <div className="absolute inset-0 flex justify-center" aria-label="Loading Google sign-in" role="status">
+    <div
+      // Fades out only after the button has faded in over it, so there's never a gap.
+      className={`absolute inset-0 flex justify-center transition-opacity duration-300 ${
+        fading ? "opacity-0 delay-300" : "opacity-100"
+      }`}
+      aria-label={fading ? undefined : "Loading Google sign-in"}
+      role={fading ? undefined : "status"}
+      aria-hidden={fading || undefined}
+    >
       <div className="h-full w-full max-w-[400px] rounded-full bg-surface-2 animate-pulse" />
     </div>
   );
