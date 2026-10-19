@@ -1,6 +1,6 @@
 import { cacheLife } from "next/cache";
 import { DEFAULT_REGION } from "./regions";
-import { API_URL, fromSlug, type Filters, type FullTitle, type Person, type SearchHit } from "./api";
+import { API_URL, fromSlug, type Filters, type FullTitle, type Person, type ProviderOption, type SearchHit } from "./api";
 
 // Server-side reads for pages search engines should see fully rendered (title
 // and person pages, the sitemap). Inside the cluster or Docker Compose the web
@@ -48,4 +48,11 @@ export async function getBrowse(filters: Partial<Filters>, region: string, limit
   });
   if (!res.ok) throw new Error(`POST /api/browse: ${res.status}`);
   return (await res.json()) as SearchHit[];
+}
+
+/** The streaming services offered in a country, with their logos. */
+export async function getProviders(region: string): Promise<ProviderOption[]> {
+  "use cache";
+  cacheLife("days");
+  return (await getJSON<ProviderOption[]>(`/api/providers?region=${region}`)) ?? [];
 }
