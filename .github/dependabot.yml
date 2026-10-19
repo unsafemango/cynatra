@@ -1,0 +1,25 @@
+# Weekly pull requests that update dependencies (and fix known vulnerabilities),
+# grouped so each area is one PR rather than one per package.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    groups:
+      web: { patterns: ["*"], update-types: [minor, patch] }
+  - package-ecosystem: npm
+    directory: /gateway
+    schedule: { interval: weekly }
+    groups:
+      gateway: { patterns: ["*"], update-types: [minor, patch] }
+  - package-ecosystem: gomod
+    directory: /picker
+    schedule: { interval: weekly }
+    groups:
+      picker: { patterns: ["*"], update-types: [minor, patch] }
+  - package-ecosystem: docker
+    directories: [/web, /gateway, /picker]
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

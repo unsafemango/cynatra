@@ -24,6 +24,8 @@ spec:
       backoffLimit: 2
       ttlSecondsAfterFinished: 604800 # keep a finished job's pod (and logs) for a week
       template:
+        metadata:
+          labels: { app: postgres-backup } # allowed to reach postgres (network-policies.yaml)
         spec:
           restartPolicy: Never
           volumes:

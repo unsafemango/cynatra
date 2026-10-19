@@ -2,6 +2,7 @@ import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/index.js";
 import { callPicker } from "../picker.js";
+import { perIp } from "../rate-limit.js";
 import { DEFAULT_REGION } from "../config.js";
 
 export const pickRouter = Router();
@@ -66,7 +67,7 @@ const browseRequest = z.object({
   limit: z.number().int().min(1).max(40).default(20),
 });
 
-pickRouter.post("/browse", async (req, res) => {
+pickRouter.post("/browse", perIp(30, 60_000), async (req, res) => {
   const parsed = browseRequest.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
@@ -111,7 +112,7 @@ pickRouter.get("/person/:id", async (req, res) => {
   res.status(status).json(body);
 });
 
-pickRouter.post("/pick", async (req, res) => {
+pickRouter.post("/pick", perIp(60, 60_000, "Lots of spins! Please wait a moment and try again."), async (req, res) => {
   const parsed = pickRequest.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid filters" });

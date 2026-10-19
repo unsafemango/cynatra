@@ -26,6 +26,15 @@ spec:
       containers:
         - name: gateway
           image: cynatra-gateway
+          # Unprivileged, read-only and with no extra Linux capabilities: little to
+          # gain from breaking into this container.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            seccompProfile: { type: RuntimeDefault }
           imagePullPolicy: Always
           envFrom:
             - configMapRef: { name: cynatra-config }

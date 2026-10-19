@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { limiter, perIp } from "../rate-limit.js";
 import { Router, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, requireDb, signToken } from "../auth.js";
@@ -16,7 +17,14 @@ const credentials = z.object({
 });
 
 // Step 1 of email sign-up: email a code. No account exists until step 2.
-authRouter.post("/register", requireDb, async (req, res) => {
+// Limits on guessing: per visitor IP, and per account for logins (so spreading
+// attempts over many IPs doesn't help either).
+const FIFTEEN_MIN = 15 * 60 * 1000;
+const authPerIp = perIp(15, FIFTEEN_MIN, "Too many attempts. Please wait a few minutes and try again.");
+const loginPerIp = perIp(10, FIFTEEN_MIN, "Too many login attempts. Please wait a few minutes and try again.");
+const loginPerAccount = limiter(10, FIFTEEN_MIN);
+
+authRouter.post("/register", requireDb, authPerIp, async (req, res) => {
   const parsed = credentials.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid input" });
@@ -30,7 +38,7 @@ authRouter.post("/register", requireDb, async (req, res) => {
 });
 
 // Step 2: the emailed code creates the account and signs in.
-authRouter.post("/register/verify", requireDb, async (req, res) => {
+authRouter.post("/register/verify", requireDb, authPerIp, async (req, res) => {
   const parsed = z
     .object({ email: z.string().trim().toLowerCase().email(), code: z.string().trim().regex(/^\d{6}$/) })
     .safeParse(req.body);
@@ -44,7 +52,7 @@ authRouter.post("/register/verify", requireDb, async (req, res) => {
   });
 });
 
-authRouter.post("/register/resend", requireDb, async (req, res) => {
+authRouter.post("/register/resend", requireDb, authPerIp, async (req, res) => {
   const parsed = z.object({ email: z.string().trim().toLowerCase().email() }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid email." });
@@ -68,13 +76,18 @@ async function withSignupErrors(res: Response, fn: () => Promise<void>) {
   }
 }
 
-authRouter.post("/login", requireDb, async (req, res) => {
+authRouter.post("/login", requireDb, loginPerIp, async (req, res) => {
   const parsed = credentials.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid email or password." });
     return;
   }
   const { email, password } = parsed.data;
+  if (!loginPerAccount(email)) {
+    res.setHeader("Retry-After", String(FIFTEEN_MIN / 1000));
+    res.status(429).json({ error: "Too many login attempts for this account. Please wait a few minutes and try again." });
+    return;
+  }
   const { rows } = await pool!.query<{ id: string; password_hash: string | null; region: string }>(
     "SELECT id, password_hash, region FROM users WHERE email = $1",
     [email],
@@ -97,7 +110,7 @@ authRouter.get("/config", (_req, res) => {
   res.json({ accounts: Boolean(pool), googleClientId: pool ? (config.googleClientId ?? null) : null });
 });
 
-authRouter.post("/google", requireDb, async (req, res) => {
+authRouter.post("/google", requireDb, authPerIp, async (req, res) => {
   const parsed = z.object({ credential: z.string().min(20).max(5000) }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing Google credential." });

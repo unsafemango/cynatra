@@ -13,6 +13,7 @@ resources:
   - picker.yaml
   - gateway.yaml
   - web.yaml
+  - network-policies.yaml
   - redirect-https.yaml
   - ingress.yaml
 

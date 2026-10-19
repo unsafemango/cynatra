@@ -21,6 +21,15 @@ spec:
       containers:
         - name: picker
           image: cynatra-picker
+          # Unprivileged, read-only and with no extra Linux capabilities: little to
+          # gain from breaking into this container.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            seccompProfile: { type: RuntimeDefault }
           imagePullPolicy: Always
           env:
             - { name: PORT, value: "8081" }

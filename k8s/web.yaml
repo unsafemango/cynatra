@@ -23,6 +23,15 @@ spec:
       containers:
         - name: web
           image: cynatra-web
+          # Unprivileged, read-only and with no extra Linux capabilities: little to
+          # gain from breaking into this container.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            seccompProfile: { type: RuntimeDefault }
           imagePullPolicy: Always
           ports: [{ containerPort: 3000 }]
           env:
@@ -32,6 +41,16 @@ spec:
           readinessProbe:
             httpGet: { path: /, port: 3000 }
             periodSeconds: 10
+          # The filesystem is read-only; Next.js writes its image cache (and
+          # temporary files) here instead.
+          volumeMounts:
+            - { name: next-cache, mountPath: /app/.next/cache }
+            - { name: tmp, mountPath: /tmp }
           resources:
             requests: { cpu: 50m, memory: 128Mi }
             limits: { memory: 512Mi }
+      volumes:
+        - name: next-cache
+          emptyDir: { sizeLimit: 512Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

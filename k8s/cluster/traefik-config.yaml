@@ -1,0 +1,16 @@
+# k3s's built-in Traefik, adjusted (k3s merges this into its Traefik install).
+# Applied separately from the app (it lives in kube-system):
+#   kubectl apply -f k8s/cluster/traefik-config.yaml
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      spec:
+        # Keep visitors' real IP addresses (the default swaps them for an
+        # internal one), so per-visitor rate limits and logs work. Safe on a
+        # single-server cluster: all traffic arrives on this node anyway.
+        externalTrafficPolicy: Local

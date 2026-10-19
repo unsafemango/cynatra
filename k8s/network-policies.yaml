@@ -1,0 +1,79 @@
+# An internal firewall between the app's pods: nothing reaches a pod unless a
+# rule below allows it, so a compromised service can only talk to what it
+# actually needs (e.g. the web app can't reach the database directly).
+#
+#   internet → Traefik (kube-system) → web, gateway
+#   web (server-rendered pages) → gateway
+#   gateway → picker, postgres          picker → redis
+#   nightly backup job → postgres
+#
+# Outgoing traffic (TMDB, IMDb, Brevo, DNS) isn't restricted.
+
+# 1. Deny all incoming traffic to every pod in the namespace by default.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# 2. Traefik (and cert-manager's renewal checks, which come through it) may
+#    reach the pods it routes to.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-from-web
+spec:
+  podSelector: { matchLabels: { app: gateway } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: web } } }]
+      ports: [{ port: 4000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: picker-from-gateway
+spec:
+  podSelector: { matchLabels: { app: picker } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: gateway } } }]
+      ports: [{ port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-from-gateway-and-backup
+spec:
+  podSelector: { matchLabels: { app: postgres } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } }
+        - podSelector: { matchLabels: { app: postgres-backup } }
+      ports: [{ port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-from-picker
+spec:
+  podSelector: { matchLabels: { app: redis } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: picker } } }]
+      ports: [{ port: 6379 }]

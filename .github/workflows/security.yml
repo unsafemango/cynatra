@@ -1,0 +1,45 @@
+# Checks the app's dependencies for known security vulnerabilities: on every
+# push to main, weekly (new vulnerabilities get published all the time), and by
+# hand. Separate from the Images workflow, so a finding never blocks a deploy;
+# a failed run here is the alert.
+name: Security
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1" # Mondays, 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Only what ships (not dev tools), and only high or critical findings.
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: ${{ matrix.app }}
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The latest 1.26 patch, like the picker's Docker image (golang:1.26-alpine),
+      # not go.mod's minimum: standard-library fixes ship in patch releases.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          check-latest: true
+      # Reports only vulnerabilities in code the picker actually calls.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        working-directory: picker

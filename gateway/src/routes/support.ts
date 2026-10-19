@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { sendSupportMessage } from "../mailer.js";
+import { limiter } from "../rate-limit.js";
 
 // The Help page's contact form.
 export const supportRouter = Router();
@@ -22,23 +23,6 @@ const supportRequest = z.object({
   // Honeypot: hidden from people, filled in by bots.
   website: z.string().optional(),
 });
-
-/** Counts events per key over a sliding window, in memory (fine for one gateway). */
-function limiter(max: number, windowMs: number) {
-  const hits = new Map<string, number[]>();
-  return (key: string) => {
-    const now = Date.now();
-    const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
-    if (recent.length >= max) {
-      hits.set(key, recent);
-      return false;
-    }
-    recent.push(now);
-    hits.set(key, recent);
-    if (hits.size > 10_000) hits.clear(); // don't grow without bound
-    return true;
-  };
-}
 
 const HOUR = 60 * 60 * 1000;
 const perIp = limiter(5, HOUR);
