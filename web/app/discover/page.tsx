@@ -17,24 +17,25 @@ export const metadata: Metadata = {
   alternates: { canonical: "/discover" },
 };
 
-// How each generator looks here: an emoji, a few words, and a colour (hue).
-const LOOK: Record<string, { emoji: string; tagline: string; hue: number }> = {
-  movie: { emoji: "🎬", tagline: "One movie for tonight", hue: 352 },
-  "tv-show": { emoji: "📺", tagline: "Your next binge", hue: 212 },
-  animated: { emoji: "🎨", tagline: "From Pixar to Ghibli", hue: 280 },
-  documentary: { emoji: "🎥", tagline: "True stories, nature, history", hue: 150 },
-  "horror-movie": { emoji: "👻", tagline: "Ghosts, slashers, dread", hue: 0 },
-  "comedy-movie": { emoji: "😂", tagline: "Guaranteed laughs", hue: 45 },
-  "action-movie": { emoji: "💥", tagline: "Chases, heists, heroes", hue: 20 },
-  "romance-movie": { emoji: "💘", tagline: "Love stories & rom-coms", hue: 330 },
-  "sci-fi-movie": { emoji: "🚀", tagline: "Space, time and AI", hue: 190 },
-  "thriller-movie": { emoji: "🔪", tagline: "Tension and twists", hue: 262 },
-  "family-movie": { emoji: "🧸", tagline: "Fun for all ages", hue: 100 },
-  "mystery-movie": { emoji: "🕵️", tagline: "Whodunits & puzzles", hue: 230 },
-  "comedy-show": { emoji: "🛋️", tagline: "Sitcoms to put on", hue: 55 },
-  "crime-show": { emoji: "🚔", tagline: "Detectives & heists", hue: 215 },
+// Each generator's card: a few words, a colour (hue) for its corner wash, and
+// (loaded separately) the posters of its three most popular titles.
+const LOOK: Record<string, { tagline: string; hue: number; label?: string }> = {
+  movie: { tagline: "One movie for tonight", hue: 352 },
+  "tv-show": { tagline: "Your next binge", hue: 212 },
+  animated: { tagline: "From Pixar to Ghibli", hue: 280, label: "Animated" },
+  documentary: { tagline: "True stories, nature, history", hue: 150 },
+  "horror-movie": { tagline: "Ghosts, slashers, dread", hue: 0 },
+  "comedy-movie": { tagline: "Guaranteed laughs", hue: 45 },
+  "action-movie": { tagline: "Chases, heists, heroes", hue: 20 },
+  "romance-movie": { tagline: "Love stories & rom-coms", hue: 330 },
+  "sci-fi-movie": { tagline: "Space, time and AI", hue: 190 },
+  "thriller-movie": { tagline: "Tension and twists", hue: 262 },
+  "family-movie": { tagline: "Fun for all ages", hue: 100 },
+  "mystery-movie": { tagline: "Whodunits & puzzles", hue: 230 },
+  "comedy-show": { tagline: "Sitcoms to put on", hue: 55 },
+  "crime-show": { tagline: "Detectives & heists", hue: 215 },
 };
-const look = (slug: string) => LOOK[slug] ?? { emoji: "🎲", tagline: "Spin for one", hue: 352 };
+const look = (slug: string) => LOOK[slug] ?? { tagline: "Spin for one", hue: 352 };
 
 // The four broad kinds get big cards; every other generator is a genre.
 const BY_TYPE = ["movie", "tv-show", "animated", "documentary"];
@@ -80,23 +81,15 @@ export default function DiscoverPage() {
       </section>
 
       <Section title="Start with a type" subtitle="The quickest way in: one tap, one pick.">
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {byType.map((p) => (
-            <li key={p.slug}>
-              <GeneratorCard page={p} large />
-            </li>
-          ))}
-        </ul>
+        <Suspense fallback={<GeneratorGrid pages={byType} large />}>
+          <GeneratorGridWithPosters pages={byType} large />
+        </Suspense>
       </Section>
 
       <Section title="Pick a genre" subtitle="In the mood for something specific?">
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {byGenre.map((p) => (
-            <li key={p.slug}>
-              <GeneratorCard page={p} />
-            </li>
-          ))}
-        </ul>
+        <Suspense fallback={<GeneratorGrid pages={byGenre} />}>
+          <GeneratorGridWithPosters pages={byGenre} />
+        </Suspense>
       </Section>
 
       <Section title="What's on your services" subtitle="Spin only from what you can stream right now.">
@@ -126,8 +119,56 @@ function Section({ title, subtitle, children }: { title: string; subtitle: strin
   );
 }
 
-function GeneratorCard({ page, large = false }: { page: Landing; large?: boolean }) {
-  const { emoji, tagline, hue } = look(page.slug);
+function GeneratorGrid({
+  pages,
+  large = false,
+  posters,
+}: {
+  pages: Landing[];
+  large?: boolean;
+  /** Poster URLs by page slug; placeholders until they're here. */
+  posters?: Record<string, string[]>;
+}) {
+  return (
+    <ul className={`grid grid-cols-2 gap-3 ${large ? "lg:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5"}`}>
+      {pages.map((p) => (
+        <li key={p.slug}>
+          <GeneratorCard page={p} large={large} posters={posters?.[p.slug]} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The same grid, with each generator's three most popular posters. */
+async function GeneratorGridWithPosters({ pages, large = false }: { pages: Landing[]; large?: boolean }) {
+  await connection(); // posters come from the API: at request time (cached), never at build time
+  const lists = await Promise.all(
+    // The same list (and cache entry) as each generator's own page.
+    pages.map((p) => getBrowse(p.filters, p.listRegion).catch(() => [] as SearchHit[])),
+  );
+  // Three per card, never one already on another card (big hits top many genres).
+  const used = new Set<string>();
+  const posters = Object.fromEntries(
+    pages.map((p, i) => {
+      const picked = lists[i].filter((h) => h.posterUrl && !used.has(h.id)).slice(0, 3);
+      picked.forEach((h) => used.add(h.id));
+      return [p.slug, picked.map((h) => h.posterUrl!)];
+    }),
+  );
+  return <GeneratorGrid pages={pages} large={large} posters={posters} />;
+}
+
+// Where each poster in the fan sits: left, middle (on top), right.
+const FAN = [
+  "left-0 top-2 -rotate-[9deg] group-hover:-translate-x-1 group-hover:-rotate-[13deg]",
+  "left-1/2 top-0 z-10 -translate-x-1/2 group-hover:-translate-y-1",
+  "right-0 top-2 rotate-[9deg] group-hover:translate-x-1 group-hover:rotate-[13deg]",
+];
+
+function GeneratorCard({ page, large = false, posters }: { page: Landing; large?: boolean; posters?: string[] }) {
+  const { tagline, hue, label: short } = look(page.slug);
+  const label = short ?? page.linkLabel.replace(/^Random /, "").replace(/^./, (c) => c.toUpperCase());
   return (
     <Link
       href={landingPath(page)}
@@ -136,23 +177,26 @@ function GeneratorCard({ page, large = false }: { page: Landing; large?: boolean
         large ? "gap-4 p-5 sm:p-6" : "gap-3 p-4"
       }`}
     >
-      {/* A soft wash of the card's colour in the corner. */}
+      {/* A soft wash of the card's colour behind the posters. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-[hsl(var(--hue)_85%_60%/0.14)] blur-2xl"
+        className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full bg-[hsl(var(--hue)_85%_60%/0.16)] blur-2xl"
       />
-      <span
-        aria-hidden
-        className={`relative grid place-items-center rounded-xl bg-[hsl(var(--hue)_85%_60%/0.16)] ${
-          large ? "size-14 text-3xl" : "size-11 text-2xl"
-        }`}
-      >
-        {emoji}
+      {/* Three posters from this generator's popular titles, fanned out (wider on hover). */}
+      <span aria-hidden className={`relative block ${large ? "h-28 w-[7.5rem]" : "h-[5.25rem] w-[5.5rem]"}`}>
+        {FAN.map((spot, i) => (
+          <span
+            key={spot}
+            className={`absolute overflow-hidden rounded-md border-2 border-surface bg-surface-2 shadow-md shadow-black/40 transition-transform duration-300 ${spot} ${
+              large ? "h-[6.5rem] w-[4.4rem]" : "h-[4.9rem] w-[3.3rem]"
+            } ${posters ? "" : "animate-pulse"}`}
+          >
+            {posters?.[i] && <Image src={posters[i]} alt="" fill sizes="72px" className="object-cover" />}
+          </span>
+        ))}
       </span>
       <span className="relative min-w-0">
-        <span className={`block font-semibold leading-snug ${large ? "text-lg" : ""}`}>
-          {page.linkLabel.replace(/^Random /, "").replace(/^./, (c) => c.toUpperCase())}
-        </span>
+        <span className={`block font-semibold leading-snug ${large ? "text-lg" : ""}`}>{label}</span>
         <span className="mt-0.5 block text-sm text-muted">{tagline}</span>
       </span>
       <span className="relative mt-auto text-sm font-medium text-muted transition-colors group-hover:text-foreground">
