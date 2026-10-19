@@ -21,14 +21,21 @@ export type Landing = {
   filters: Partial<Filters>;
   spinLabel: string;
   gridHeading: string;
-  /** The country the popular list is for (streaming pages); the spin uses the visitor's. */
+  /**
+   * The country the server's popular list is for (what search engines see).
+   * In the browser, streaming pages switch to the viewer's country.
+   */
   listRegion: string;
-  /** Spin in this country whatever the visitor's (a service only offered there). */
-  spinRegion?: string;
+  /** Streaming pages: the service, checked against the viewer's country. */
+  service?: { key: string; name: string; tips?: Record<string, string> };
   faq: { q: string; a: string }[];
 };
 
 const MIN_RATING = 6.5;
+
+/** "Popular on Netflix in Canada" / "…in the US". */
+export const popularOn = (service: string, region: string) =>
+  `Popular on ${service} in ${region === "US" ? "the US" : regionName(region)}`;
 
 const random = (
   slug: string,
@@ -236,6 +243,8 @@ const streaming = (
   listRegion: string,
   intro: string[],
   onlyIn?: { region: string; name: string },
+  /** Where to look instead, by country, when the service isn't offered there. */
+  tips?: Record<string, string>,
 ): Landing => ({
   slug,
   section: "streaming",
@@ -246,9 +255,9 @@ const streaming = (
   intro,
   filters: { type: "any", minRating: MIN_RATING, services: [serviceKey] },
   spinLabel: `🎲 Spin something on ${service}`,
-  gridHeading: `Popular on ${service} in ${listRegion === "US" ? "the US" : regionName(listRegion)}`,
+  gridHeading: popularOn(service, listRegion),
   listRegion,
-  spinRegion: onlyIn?.region,
+  service: { key: serviceKey, name: service, tips },
   faq: [
     {
       q: `Is everything here included with ${service}?`,
@@ -257,11 +266,11 @@ const streaming = (
     onlyIn
       ? {
           q: `Is ${service} available outside ${onlyIn.name}?`,
-          a: `No, ${service} is only in ${onlyIn.name}, so spins here always use what's streaming there.`,
+          a: `No, ${service} is only offered in ${onlyIn.name}. Elsewhere this page lets you know and suggests services available where you are.`,
         }
       : {
           q: "Does it work outside the US?",
-          a: "Yes. The spin uses your country (from your browser, or your profile when you're logged in), so it only picks what's available where you are.",
+          a: `Yes, where ${service} is offered. The spin and the popular list use your country (your profile's when you're logged in), so they only show what's available where you are. If ${service} isn't offered in your country, the page tells you and suggests services that are.`,
         },
     HOW_IT_WORKS,
   ],
@@ -282,12 +291,12 @@ export const STREAMING_PAGES: Landing[] = [
   ]),
   streaming("hulu", "Hulu", "hulu", "US", [
     "Hulu's mix of current TV, originals and movies makes for a lot of scrolling. Spin for one well-rated movie or series that's streaming on Hulu now.",
-    "Hulu is US-only, so outside the US your spin will tell you there's nothing to pick.",
+    "Hulu is only offered in the US; elsewhere this page suggests services available where you are.",
   ]),
   streaming("hbo-max", "HBO Max", "hbo-max", "US", [
     "HBO series, Warner Bros. movies and more: spin for a random, well-rated title streaming on HBO Max in your country.",
     "Each pick shows the trailer and how many seasons a series has.",
-  ]),
+  ], undefined, { CA: "In Canada, HBO series stream on Crave." }),
   streaming("apple-tv", "Apple TV+", "apple-tv", "CA", [
     "Apple TV+ has a smaller catalogue of originals that's easy to overlook. Spin for one of its well-rated movies or series.",
     "Each pick shows the trailer, rating and where else it's streaming.",
@@ -298,11 +307,11 @@ export const STREAMING_PAGES: Landing[] = [
   ]),
   streaming("peacock", "Peacock", "peacock", "US", [
     "Peacock has NBC shows, Universal movies and originals. Spin for one well-rated movie or series that's on Peacock right now.",
-    "Peacock is US-only, so outside the US your spin will tell you there's nothing to pick.",
+    "Peacock is only offered in the US; elsewhere this page suggests services available where you are.",
   ]),
   streaming("crave", "Crave", "crave", "CA", [
     "Crave is Canada's home of HBO series, plus movies and Canadian originals. Spin for a random, well-rated title streaming on Crave.",
-    "Crave is only in Canada, so spins here use Canadian availability.",
+    "Crave is only offered in Canada; elsewhere this page suggests services available where you are.",
   ], { region: "CA", name: "Canada" }),
 ];
 

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ServiceUnavailable } from "@/components/landing/ServiceUnavailable";
 import { SpinLoader } from "@/components/SpinLoader";
 import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { api, type Filters, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { localSeen } from "@/lib/library";
-import { DEFAULT_REGION, guessRegion } from "@/lib/regions";
+import { DEFAULT_REGION } from "@/lib/regions";
 import { revealResult } from "@/lib/scroll";
+import { useServiceAvailable, useViewerRegion } from "@/lib/viewer-region";
 
 // Same feel as the Spin page: the reel shows long enough to read as a spin.
 const MIN_SPIN_MS = 900;
@@ -21,12 +23,12 @@ const MIN_SPIN_MS = 900;
 export function PresetSpin({
   filters,
   label,
-  region: fixedRegion,
+  service,
 }: {
   filters: Partial<Filters>;
   label: string;
-  /** Always spin in this country (a service only offered there). */
-  region?: string;
+  /** Streaming pages: replaced by a notice where the service isn't offered. */
+  service?: { key: string; name: string; tips?: Record<string, string> };
 }) {
   const { user } = useAuth();
   const [result, setResult] = useState<Title | null>(null);
@@ -42,11 +44,10 @@ export function PresetSpin({
     revealResult(resultRef.current);
     if (!loading) revealPending.current = false;
   }, [loading, result, error]);
-  // Logged out: a guess from the browser's languages (set after mount, so server and client HTML match).
-  const [guessedRegion, setGuessedRegion] = useState(DEFAULT_REGION);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setGuessedRegion(guessRegion()), []);
-  const region = fixedRegion ?? user?.region ?? guessedRegion;
+  // The profile's country, or a guess when logged out (Canada until known).
+  const viewerRegion = useViewerRegion();
+  const region = viewerRegion ?? DEFAULT_REGION;
+  const available = useServiceAvailable(service?.key, viewerRegion);
 
   const spin = useCallback(async () => {
     setLoading(true);
@@ -69,6 +70,10 @@ export function PresetSpin({
       setLoading(false);
     }
   }, [filters, region, user]);
+
+  if (service && viewerRegion && available === false) {
+    return <ServiceUnavailable service={service} region={viewerRegion} />;
+  }
 
   return (
     <section aria-label="Spin" className="space-y-5">

@@ -22,6 +22,9 @@ export const REGIONS = [
 /** Country name for a code, e.g. "CA" -> "Canada" (the code itself if unknown). */
 export const regionName = (code: string) => REGIONS.find(([c]) => c === code)?.[1] ?? code;
 
+/** The name as it reads after "in": "in Canada", but "in the United States". */
+export const inRegion = (code: string) => (["US", "GB", "NL"].includes(code) ? "the " : "") + regionName(code);
+
 // "US" -> 🇺🇸 (regional indicator letters).
 export const flag = (code: string) => String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0)));
 

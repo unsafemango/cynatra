@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { JsonLd } from "@/components/JsonLd";
-import { PosterTile } from "@/components/PosterTile";
 import { PresetSpin } from "@/components/PresetSpin";
+import { RegionalGrid } from "./RegionalGrid";
 import { toSlug } from "@/lib/api";
 import { LANDING_PAGES, landingPath, type Landing } from "@/lib/landing";
 import { getBrowse } from "@/lib/server-api";
@@ -53,14 +53,11 @@ export function LandingView({ page }: { page: Landing }) {
             <p key={p}>{p}</p>
           ))}
         </div>
-        <PresetSpin filters={page.filters} label={page.spinLabel} region={page.spinRegion} />
+        <PresetSpin filters={page.filters} label={page.spinLabel} service={page.service} />
       </header>
 
       <section aria-labelledby="popular" className="space-y-4">
-        <h2 id="popular" className="text-xl font-semibold">
-          {page.gridHeading}
-        </h2>
-        <Suspense fallback={<GridSkeleton />}>
+        <Suspense fallback={<GridSkeleton heading={page.gridHeading} />}>
           <PopularGrid page={page} />
         </Suspense>
       </section>
@@ -111,9 +108,15 @@ async function PopularGrid({ page }: { page: Landing }) {
   try {
     hits = await getBrowse(page.filters, page.listRegion);
   } catch {
-    return <p className="text-muted">Couldn&apos;t load popular picks right now. The spin above still works.</p>;
+    return (
+      <>
+        <h2 id="popular" className="text-xl font-semibold">
+          {page.gridHeading}
+        </h2>
+        <p className="text-muted">Couldn&apos;t load popular picks right now. The spin above still works.</p>
+      </>
+    );
   }
-  if (hits.length === 0) return <p className="text-muted">Nothing to show here right now.</p>;
   return (
     <>
       <JsonLd
@@ -129,23 +132,28 @@ async function PopularGrid({ page }: { page: Landing }) {
           })),
         }}
       />
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:grid-cols-6">
-        {hits.map((h) => (
-          <li key={h.id}>
-            <PosterTile hit={h} sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 150px" />
-          </li>
-        ))}
-      </ul>
+      <RegionalGrid
+        initial={hits}
+        heading={page.gridHeading}
+        listRegion={page.listRegion}
+        filters={page.filters}
+        service={page.service}
+      />
     </>
   );
 }
 
-function GridSkeleton() {
+function GridSkeleton({ heading }: { heading: string }) {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:grid-cols-6" aria-hidden>
-      {Array.from({ length: 12 }, (_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl bg-surface-2 animate-pulse" />
-      ))}
-    </div>
+    <>
+      <h2 id="popular" className="text-xl font-semibold">
+        {heading}
+      </h2>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:grid-cols-6" aria-hidden>
+        {Array.from({ length: 12 }, (_, i) => (
+          <div key={i} className="aspect-[2/3] rounded-xl bg-surface-2 animate-pulse" />
+        ))}
+      </div>
+    </>
   );
 }
