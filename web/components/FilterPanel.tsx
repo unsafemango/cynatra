@@ -123,15 +123,29 @@ export function FilterPanel({
       genres: filters.genres.includes(slug) ? filters.genres.filter((g) => g !== slug) : [...filters.genres, slug],
     });
 
+  // Documentary sits with the types but is a genre: any type, only documentaries.
+  // The row still works as one choice: picking a type switches away from it.
+  const documentary = filters.type === "any" && sameSet(filters.genres, ["documentary"]);
+
   return (
     <div className="divide-y divide-border">
       <Section label="What do you feel like?">
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
-            <Chip key={t.value} active={filters.type === t.value} onClick={() => set({ type: t.value })}>
+            <Chip
+              key={t.value}
+              active={filters.type === t.value && !documentary}
+              onClick={() => set({ type: t.value, genres: documentary ? [] : filters.genres })}
+            >
               {t.label}
             </Chip>
           ))}
+          <Chip
+            active={documentary}
+            onClick={() => set(documentary ? { genres: [] } : { type: "any", genres: ["documentary"] })}
+          >
+            🎥 Documentary
+          </Chip>
         </div>
       </Section>
 
