@@ -24,6 +24,7 @@ const LOOK: Record<string, { tagline: string; hue: number; label?: string }> = {
   "tv-show": { tagline: "Your next binge", hue: 212 },
   animated: { tagline: "From Pixar to Ghibli", hue: 280, label: "Animated" },
   documentary: { tagline: "True stories, nature, history", hue: 150 },
+  "hidden-gem": { tagline: "Underrated and worth it", hue: 170 },
   "horror-movie": { tagline: "Ghosts, slashers, dread", hue: 0 },
   "comedy-movie": { tagline: "Guaranteed laughs", hue: 45 },
   "action-movie": { tagline: "Chases, heists, heroes", hue: 20 },
@@ -42,7 +43,10 @@ const BY_TYPE = ["movie", "tv-show", "animated", "documentary"];
 
 export default function DiscoverPage() {
   const byType = BY_TYPE.map((slug) => RANDOM_PAGES.find((p) => p.slug === slug)).filter((p): p is Landing => !!p);
-  const byGenre = RANDOM_PAGES.filter((p) => !BY_TYPE.includes(p.slug));
+  // Hidden gems lead the genre grid: it's the newest and least obvious way in.
+  const byGenre = RANDOM_PAGES.filter((p) => !BY_TYPE.includes(p.slug)).sort(
+    (a, b) => Number(b.slug === "hidden-gem") - Number(a.slug === "hidden-gem"),
+  );
 
   return (
     <div className="mx-auto max-w-5xl space-y-14">

@@ -21,6 +21,8 @@ const pickRequest = z.object({
   excludeIds: z.array(titleId).max(500).default([]),
   excludeSeen: z.boolean().default(true),
   look: z.enum(["any", "colorful"]).default("any"),
+  // Only hidden gems: highly rated, but not widely watched.
+  gems: z.boolean().optional(),
   // Only titles streaming on these services (keys like "netflix") in the region.
   services: z.array(z.string().regex(/^[a-z0-9-]{1,60}$/, "Unknown streaming service")).max(30).default([]),
 });

@@ -205,6 +205,26 @@ export const RANDOM_PAGES: Landing[] = [
     [HOW_IT_WORKS],
   ),
   random(
+    "hidden-gem",
+    "hidden gem",
+    { type: "any", gems: true },
+    [
+      "Tired of the same few hits everyone has already seen? Spin for a hidden gem: an underrated movie or series that viewers rate highly, but that never got the big audience it deserved.",
+      "Each pick shows its IMDb rating and how many people have rated it, so you can see just how under the radar it is, plus the trailer and where to stream it.",
+    ],
+    [
+      {
+        q: "What counts as a hidden gem?",
+        a: "A title rated 7.3 or more on IMDb by enough people to trust the score, but by far fewer people than a hit: roughly 2,000 to 40,000 ratings for a movie (big hits have hundreds of thousands), and fewer for series.",
+      },
+      {
+        q: "Can I get hidden gems in a genre or on my streaming service?",
+        a: "Yes. On the Spin page, open Filters, turn on Hidden gems, and add a genre, a type or your streaming services.",
+      },
+      HOW_IT_WORKS,
+    ],
+  ),
+  random(
     "comedy-show",
     "comedy show",
     { type: "series", genres: ["comedy"] },

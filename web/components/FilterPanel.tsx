@@ -129,7 +129,10 @@ export function FilterPanel({
 
   return (
     <div className="divide-y divide-border">
-      <Section label="What do you feel like?">
+      <Section
+        label="What do you feel like?"
+        hint={filters.gems ? "Hidden gems only" : undefined}
+      >
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
             <Chip
@@ -146,7 +149,13 @@ export function FilterPanel({
           >
             🎥 Documentary
           </Chip>
+          {/* Not one of the choices above but on top of any of them, so it toggles on its own. */}
+          <span aria-hidden className="mx-1 h-6 w-px self-center bg-border" />
+          <Chip active={Boolean(filters.gems)} onClick={() => set({ gems: !filters.gems })}>
+            💎 Hidden gems
+          </Chip>
         </div>
+
       </Section>
 
       <Section label="Vibe" hint="Shortcut for a set of genres">
@@ -390,6 +399,9 @@ export function describeFilters(
   if (f.maxRuntime) {
     const label = RUNTIMES.find(([m]) => m === f.maxRuntime)?.[1] ?? `Under ${f.maxRuntime} min`;
     chips.push({ id: "runtime", label, remove: (x) => ({ ...x, maxRuntime: undefined }) });
+  }
+  if (f.gems) {
+    chips.push({ id: "gems", label: "💎 Hidden gems", remove: (x) => ({ ...x, gems: false }) });
   }
   if (f.language) {
     const label = LANGUAGES.find(([c]) => c === f.language)?.[1] ?? f.language;

@@ -98,6 +98,7 @@ func (p *Picker) Full(ctx context.Context, media string, id int, region string) 
 	t := toTitle(attempt{kind, media}, &d.Details, region)
 	markAnimation(t)
 	p.addIMDb(t)
+	t.Gem = IsGem(t)
 	return &FullTitle{Title: t, Details: toTitleDetails(media, d, region)}, nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cynatra/picker/internal/imdb"
 	"github.com/cynatra/picker/internal/look"
@@ -40,6 +41,8 @@ type Request struct {
 	Look       string   `json:"look"`       // "any" | "colorful" (bright & colourful)
 	// Only titles streaming on these services in Region (keys like "netflix").
 	Services []string `json:"services"`
+	// Only hidden gems: highly rated, but not widely watched (see gems.go).
+	Gems bool `json:"gems"`
 
 	providerIDs []int // Services as TMDB provider IDs, filled in by Pick
 }
@@ -78,6 +81,8 @@ type Title struct {
 	WhereToWatch *WhereToWatch `json:"whereToWatch,omitempty"`
 	// Colorful is set when the title was picked by the bright & colourful look filter.
 	Colorful bool `json:"colorful,omitempty"`
+	// Gem: highly rated but not widely watched (a "hidden gem" badge).
+	Gem bool `json:"gem,omitempty"`
 }
 
 type Picker struct {
@@ -273,7 +278,7 @@ func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values
 		if err != nil {
 			return nil, false, err
 		}
-		if checkIMDb && !meetsMinimum(t, r.MinRating) {
+		if (checkIMDb && !meetsMinimum(t, r.MinRating)) || (r.Gems && !t.Gem) {
 			if *checks++; *checks >= maxChecks {
 				return nil, false, ErrNoMatch
 			}
@@ -394,6 +399,15 @@ func buildQuery(a attempt, r Request) (url.Values, bool) {
 		minVotes = "80"
 	}
 	q.Set("vote_count.gte", minVotes)
+	if r.Gems {
+		// Rated well by enough people, but not a hit (IMDb has the final say per title).
+		band := tmdbGemVotes[a.media]
+		q.Set("vote_count.gte", strconv.Itoa(band.min))
+		q.Set("vote_count.lte", strconv.Itoa(band.max))
+		if r.MinRating < 7 {
+			q.Set("vote_average.gte", "7.0")
+		}
+	}
 
 	dateField := "primary_release_date"
 	if a.media == "tv" {
@@ -404,6 +418,12 @@ func buildQuery(a attempt, r Request) (url.Values, bool) {
 	}
 	if r.YearTo > 0 {
 		q.Set(dateField+".lte", fmt.Sprintf("%d-12-31", r.YearTo))
+	}
+	if r.Gems {
+		// Hidden gems have been out at least a year (unless the years asked for are older still).
+		if latest := gemReleasedBefore(time.Now()); r.YearTo == 0 || r.YearTo >= latest.Year() {
+			q.Set(dateField+".lte", latest.Format("2006-01-02"))
+		}
 	}
 	if r.MaxRuntime > 0 {
 		q.Set("with_runtime.lte", strconv.Itoa(r.MaxRuntime))
@@ -461,6 +481,7 @@ func (p *Picker) details(ctx context.Context, a attempt, id int, region string) 
 	}
 	t := toTitle(a, d, region)
 	p.addIMDb(t)
+	t.Gem = IsGem(t)
 	return t, nil
 }
 

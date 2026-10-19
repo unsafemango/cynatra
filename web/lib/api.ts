@@ -33,6 +33,8 @@ export type Title = {
   whereToWatch?: { link: string; stream: Provider[]; rent: Provider[]; buy: Provider[] };
   /** Picked by the bright & colourful look filter. */
   colorful?: boolean;
+  /** A hidden gem: highly rated, but not widely watched. */
+  gem?: boolean;
   /** On spin results for logged-in users: where it already is in their library. */
   library?: LibraryStatus;
 };
@@ -161,6 +163,8 @@ export type Filters = {
   look?: "any" | "colorful";
   /** Only titles streaming on these services (keys like "netflix") in the viewer's country. */
   services?: string[];
+  /** Only hidden gems: highly rated, but not widely watched. */
+  gems?: boolean;
 };
 
 export type User = {
