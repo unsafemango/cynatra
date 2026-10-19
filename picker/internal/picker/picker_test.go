@@ -116,17 +116,3 @@ func TestIMDbMinimumNeedsLoadedRatings(t *testing.T) {
 		t.Error("no ratings at all")
 	}
 }
-
-func TestBuildQueryMiniseries(t *testing.T) {
-	r := Request{Format: "miniseries"}
-	if _, ok := buildQuery(attempt{"movie", "movie"}, r); ok {
-		t.Error("a movie can't be a miniseries; expected no query")
-	}
-	q, ok := buildQuery(attempt{"series", "tv"}, r)
-	if !ok || q.Get("with_type") != "2" {
-		t.Errorf("series query: ok=%v with_type=%q", ok, q.Get("with_type"))
-	}
-	if err := Normalize(&Request{Format: "podcast"}); err == nil {
-		t.Error("expected error for unknown format")
-	}
-}

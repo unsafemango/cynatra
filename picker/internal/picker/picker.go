@@ -38,7 +38,6 @@ type Request struct {
 	Region     string   `json:"region"`     // ISO 3166-1, for where-to-watch
 	ExcludeIDs []string `json:"excludeIds"` // "movie:123", "tv:456"
 	Look       string   `json:"look"`       // "any" | "colorful" (bright & colourful)
-	Format     string   `json:"format"`     // "" | "miniseries" (limited series only)
 	// Only titles streaming on these services in Region (keys like "netflix").
 	Services []string `json:"services"`
 
@@ -154,11 +153,6 @@ func Normalize(r *Request) error {
 		r.Look = "colorful"
 	default:
 		return fmt.Errorf("unknown look %q", r.Look)
-	}
-	switch r.Format {
-	case "", "miniseries":
-	default:
-		return fmt.Errorf("unknown format %q", r.Format)
 	}
 	if r.Region == "" {
 		r.Region = DefaultRegion
@@ -358,12 +352,6 @@ func buildQuery(a attempt, r Request) (url.Values, bool) {
 	ids := genreIDs(r.Genres, a.media)
 	if len(r.Genres) > 0 && len(ids) == 0 {
 		return nil, false // e.g. horror series: TMDB has no TV horror genre
-	}
-	if r.Format == "miniseries" {
-		if a.media != "tv" {
-			return nil, false // only series can be limited series
-		}
-		q.Set("with_type", "2") // TMDB's TV type 2: Miniseries
 	}
 	if a.kind == "animation" {
 		g := strconv.Itoa(animationGenreID)

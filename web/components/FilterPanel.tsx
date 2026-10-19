@@ -13,33 +13,6 @@ const TYPES: { value: PickType; label: string }[] = [
   { value: "animation", label: "Animation" },
 ];
 
-// Popular kinds of thing to watch, one tap each: shortcuts that set the type,
-// language, genre or format together (like the vibes below set genres).
-// Choosing one replaces the others' settings; tapping it again clears them.
-const PICK_FIELDS: Partial<Filters> = { type: "any", genres: [], language: undefined, format: undefined };
-export const QUICK_PICKS: { label: string; filters: Partial<Filters>; active: (f: Filters) => boolean }[] = [
-  {
-    label: "🍙 Anime",
-    filters: { type: "animation", language: "ja" },
-    active: (f) => f.type === "animation" && f.language === "ja",
-  },
-  {
-    label: "🎥 Documentary",
-    filters: { genres: ["documentary"] },
-    active: (f) => f.genres.length === 1 && f.genres[0] === "documentary" && !f.language && !f.format,
-  },
-  {
-    label: "📺 Miniseries",
-    filters: { type: "series", format: "miniseries" },
-    active: (f) => f.format === "miniseries",
-  },
-  {
-    label: "🇰🇷 K-drama",
-    filters: { type: "series", language: "ko", genres: ["drama"] },
-    active: (f) => f.type === "series" && f.language === "ko" && f.genres.length === 1 && f.genres[0] === "drama",
-  },
-];
-
 // Same labels as the picker's genre list; only used to size the loading placeholders.
 const GENRE_PLACEHOLDERS = [
   "Action",
@@ -155,30 +128,10 @@ export function FilterPanel({
       <Section label="What do you feel like?">
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
-            <Chip
-              key={t.value}
-              active={filters.type === t.value}
-              // Only series can be miniseries.
-              onClick={() => set({ type: t.value, ...(t.value === "movie" || t.value === "animation" ? { format: undefined } : {}) })}
-            >
+            <Chip key={t.value} active={filters.type === t.value} onClick={() => set({ type: t.value })}>
               {t.label}
             </Chip>
           ))}
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs text-muted">Or try</span>
-          {QUICK_PICKS.map((p) => {
-            const active = p.active(filters);
-            return (
-              <Chip
-                key={p.label}
-                active={active}
-                onClick={() => set(active ? PICK_FIELDS : { ...PICK_FIELDS, ...p.filters })}
-              >
-                {p.label}
-              </Chip>
-            );
-          })}
         </div>
       </Section>
 
@@ -427,9 +380,6 @@ export function describeFilters(
   if (f.language) {
     const label = LANGUAGES.find(([c]) => c === f.language)?.[1] ?? f.language;
     chips.push({ id: "language", label, remove: (x) => ({ ...x, language: undefined }) });
-  }
-  if (f.format === "miniseries") {
-    chips.push({ id: "format", label: "📺 Miniseries", remove: (x) => ({ ...x, format: undefined }) });
   }
   return chips;
 }

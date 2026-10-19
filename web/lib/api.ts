@@ -161,8 +161,6 @@ export type Filters = {
   look?: "any" | "colorful";
   /** Only titles streaming on these services (keys like "netflix") in the viewer's country. */
   services?: string[];
-  /** "miniseries": limited series only. */
-  format?: "miniseries";
 };
 
 export type User = {

@@ -36,7 +36,6 @@ const random = (
   filters: Partial<Filters>,
   intro: string[],
   faq: { q: string; a: string }[],
-  plural = `${noun}s`,
 ): Landing => ({
   slug,
   section: "random",
@@ -47,7 +46,7 @@ const random = (
   intro,
   filters: { minRating: MIN_RATING, ...filters },
   spinLabel: `🎲 Spin a random ${noun}`,
-  gridHeading: `Popular ${plural} to start with`,
+  gridHeading: `Popular ${noun}s to start with`,
   listRegion: DEFAULT_REGION,
   faq,
 });
@@ -197,60 +196,6 @@ export const RANDOM_PAGES: Landing[] = [
       "Docuseries show their number of seasons, so you can tell a one-night watch from a longer one.",
     ],
     [HOW_IT_WORKS],
-  ),
-  random(
-    "anime",
-    "anime",
-    { type: "animation", language: "ja" },
-    [
-      "Can't choose your next anime? Spin for a random, well-rated Japanese anime series or movie, from big shōnen hits to quiet slice-of-life and Studio Ghibli films.",
-      "Each pick shows the trailer, episode length and number of seasons, and where it's streaming (Crunchyroll, Netflix and more) in your country.",
-    ],
-    [
-      HOW_IT_WORKS,
-      {
-        q: "Does it include anime movies?",
-        a: "Yes. Spins pick from both anime series and anime films. For series only, use the Spin page: choose Anime, then switch to Series.",
-      },
-      {
-        q: "Is it subbed or dubbed?",
-        a: "That depends on the streaming service. The title page shows where it's streaming, and most services offer both.",
-      },
-    ],
-    "anime",
-  ),
-  random(
-    "k-drama",
-    "K-drama",
-    { type: "series", language: "ko", genres: ["drama"] },
-    [
-      "Looking for your next K-drama? Spin for a random, well-rated Korean drama series, from romantic comedies and historical sagas to thrillers.",
-      "Each pick shows the trailer, how many episodes and seasons it has, and where it's streaming in your country.",
-    ],
-    [
-      HOW_IT_WORKS,
-      {
-        q: "Where can I watch K-dramas?",
-        a: "Netflix, Prime Video, Viki and other services carry many K-dramas, depending on your country. Each pick shows exactly where it's streaming for you.",
-      },
-    ],
-  ),
-  random(
-    "miniseries",
-    "miniseries",
-    { type: "series", format: "miniseries" },
-    [
-      "Want a great story without committing to seven seasons? Spin for a random, well-rated miniseries: limited series with a beginning, middle and end, often finished in a weekend.",
-      "Each pick shows how many episodes there are, the trailer, and where it's streaming.",
-    ],
-    [
-      HOW_IT_WORKS,
-      {
-        q: "What counts as a miniseries?",
-        a: "A series planned as one complete story, usually a single season of a few episodes (also called a limited series).",
-      },
-    ],
-    "miniseries",
   ),
   random(
     "comedy-show",
