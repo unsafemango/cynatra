@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { BackButton } from "@/components/BackButton";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import { AuthProvider } from "@/lib/auth";
 import { ShortlistProvider } from "@/lib/shortlist";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -36,6 +37,19 @@ export const metadata: Metadata = {
     locale: "en_US",
   },
   twitter: { card: "summary_large_image" },
+  // Installed on an iPhone home screen: full-screen, named Cynatra, with the
+  // status bar over the page (the header leaves room for it).
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
+};
+
+export const viewport: Viewport = {
+  // Draw under the notch and home bar; the header and floating buttons pad for them.
+  viewportFit: "cover",
+  // Browser and installed-app chrome match the page (system light/dark).
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0b0a10" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f5fa" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -64,6 +78,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </main>
             <Footer />
             <ScrollToTop />
+            <ServiceWorker />
           </ShortlistProvider>
         </AuthProvider>
       </body>

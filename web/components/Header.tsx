@@ -12,7 +12,8 @@ import { Logo, LogoMark } from "./Logo";
 
 export function Header() {
   return (
-    <header className="border-b border-border/60 bg-background/70 backdrop-blur sticky top-0 z-20">
+    // Padded for the notch when installed on an iPhone (the status bar sits over the page).
+    <header className="border-b border-border/60 bg-background/70 backdrop-blur sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <Link href="/" aria-label="Cynatra home" className="whitespace-nowrap shrink-0 rounded-md">
           {/* Phones: just the mark, so Spin · Library · Shortlist · account all fit. */}

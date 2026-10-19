@@ -14,6 +14,7 @@ export const SITEMAPS: Record<string, () => Promise<Entry[]>> = {
   "pages.xml": async () => [
     { url: SITE_URL, changefreq: "daily", priority: 1 },
     { url: `${SITE_URL}/help`, changefreq: "monthly", priority: 0.5 },
+    { url: `${SITE_URL}/install`, changefreq: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/privacy`, changefreq: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/terms`, changefreq: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/credits`, changefreq: "yearly", priority: 0.2 },
