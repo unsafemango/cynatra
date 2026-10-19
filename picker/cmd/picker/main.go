@@ -186,6 +186,27 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, ids)
 	})
+	// Most popular titles matching Spin filters, for landing pages: {"request": {...}, "limit": N}.
+	mux.HandleFunc("POST /browse", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Request picker.Request `json:"request"`
+			Limit   int            `json:"limit"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&body); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if body.Limit < 1 || body.Limit > picker.MaxBrowse {
+			body.Limit = 20
+		}
+		hits, err := p.Browse(r.Context(), body.Request, body.Limit)
+		if err != nil {
+			log.Printf("browse: %v", err)
+			writeError(w, http.StatusBadGateway, "Couldn't list titles right now.")
+			return
+		}
+		writeJSON(w, http.StatusOK, hits)
+	})
 	mux.HandleFunc("POST /pick", func(w http.ResponseWriter, r *http.Request) {
 		var req picker.Request
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {

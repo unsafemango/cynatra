@@ -1,5 +1,5 @@
 import { cacheLife } from "next/cache";
-import { API_URL, fromSlug, type FullTitle, type Person } from "./api";
+import { API_URL, fromSlug, type Filters, type FullTitle, type Person, type SearchHit } from "./api";
 
 // Server-side reads for pages search engines should see fully rendered (title
 // and person pages, the sitemap). Inside the cluster or Docker Compose the web
@@ -34,4 +34,17 @@ export async function getPopular(media: "movie" | "tv" | "person", pages: number
   "use cache";
   cacheLife("days");
   return (await getJSON<string[]>(`/api/popular?media=${media}&pages=${pages}`)) ?? [];
+}
+
+/** The most popular titles matching a landing page's filters, in one country. */
+export async function getBrowse(filters: Partial<Filters>, region: string, limit = 24): Promise<SearchHit[]> {
+  "use cache";
+  cacheLife("hours");
+  const res = await fetch(`${SERVER_API_URL}/api/browse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ request: { type: "any", genres: [], minRating: 0, ...filters, region }, limit }),
+  });
+  if (!res.ok) throw new Error(`POST /api/browse: ${res.status}`);
+  return (await res.json()) as SearchHit[];
 }

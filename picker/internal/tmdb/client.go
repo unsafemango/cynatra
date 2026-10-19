@@ -40,6 +40,13 @@ type DiscoverResult struct {
 	ID           int    `json:"id"`
 	PosterPath   string `json:"poster_path"`
 	BackdropPath string `json:"backdrop_path"`
+	// Enough to list a result without fetching its details (browse lists).
+	Title        string `json:"title"` // movies
+	Name         string `json:"name"`  // series
+	ReleaseDate  string `json:"release_date"`
+	FirstAirDate string `json:"first_air_date"`
+	GenreIDs     []int  `json:"genre_ids"`
+	VoteCount    int    `json:"vote_count"`
 }
 
 type DiscoverPage struct {

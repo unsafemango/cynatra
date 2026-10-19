@@ -1,4 +1,5 @@
 import { toSlug } from "./api";
+import { LANDING_PAGES, landingPath } from "./landing";
 import { getPopular } from "./server-api";
 import { SITE_URL } from "./site";
 
@@ -16,6 +17,10 @@ export const SITEMAPS: Record<string, () => Promise<Entry[]>> = {
     { url: `${SITE_URL}/privacy`, changefreq: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/terms`, changefreq: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/credits`, changefreq: "yearly", priority: 0.2 },
+  ],
+  "discover.xml": async () => [
+    { url: `${SITE_URL}/discover`, changefreq: "weekly", priority: 0.8 },
+    ...LANDING_PAGES.map((l) => ({ url: `${SITE_URL}${landingPath(l)}`, changefreq: "daily" as const, priority: 0.8 })),
   ],
   "titles.xml": async () => {
     // A partial list beats none if the API is struggling.

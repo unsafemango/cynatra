@@ -56,6 +56,23 @@ pickRouter.get("/popular", async (req, res) => {
   res.status(status).json(body);
 });
 
+// The most popular titles matching Spin filters, for the web app's landing pages
+// (e.g. popular horror movies). Same filters as /pick; no randomness, no user data.
+const browseRequest = z.object({
+  request: pickRequest.omit({ excludeIds: true, excludeSeen: true }),
+  limit: z.number().int().min(1).max(40).default(20),
+});
+
+pickRouter.post("/browse", async (req, res) => {
+  const parsed = browseRequest.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+    return;
+  }
+  const { status, body } = await callPicker("/browse", { method: "POST", body: JSON.stringify(parsed.data) });
+  res.status(status).json(body);
+});
+
 // A single title; `/full` adds cast, crew, seasons and everything else for the title page.
 const getTitle = (full: boolean) => async (req: Request<{ media: string; id: string }>, res: Response) => {
   const { media, id } = req.params;

@@ -22,8 +22,15 @@ const describe = (p: Person) => {
 
 export async function generateMetadata({ params }: PageProps<"/p/[id]">): Promise<Metadata> {
   const { id } = await params;
-  const p = await getPerson(id).catch(() => null);
-  if (!p) return { title: "Person not found", robots: { index: false } };
+  let p: Person | null;
+  try {
+    p = await getPerson(id);
+  } catch {
+    // The API is having a moment: plain metadata, and the page loads in the browser.
+    return { title: "Person" };
+  }
+  // Here rather than in the page, so the response is a real 404 (the page streams).
+  if (!p) notFound();
   const description = describe(p);
   return {
     title: `${p.name}: movies & TV shows`,
