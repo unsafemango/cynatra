@@ -7,7 +7,8 @@ import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { api, type Filters, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { localSeen } from "@/lib/library";
-import { guessRegion } from "@/lib/regions";
+import { DEFAULT_REGION, guessRegion } from "@/lib/regions";
+import { revealResult } from "@/lib/scroll";
 
 // Same feel as the Spin page: the reel shows long enough to read as a spin.
 const MIN_SPIN_MS = 900;
@@ -34,8 +35,15 @@ export function PresetSpin({
   // Titles shown during this visit, so spins don't repeat.
   const shown = useRef<string[]>([]);
   const resultRef = useRef<HTMLDivElement>(null);
+  // Set by a spin: show the loader, then the result, once each has rendered.
+  const revealPending = useRef(false);
+  useEffect(() => {
+    if (!revealPending.current) return;
+    revealResult(resultRef.current);
+    if (!loading) revealPending.current = false;
+  }, [loading, result, error]);
   // Logged out: a guess from the browser's languages (set after mount, so server and client HTML match).
-  const [guessedRegion, setGuessedRegion] = useState("US");
+  const [guessedRegion, setGuessedRegion] = useState(DEFAULT_REGION);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setGuessedRegion(guessRegion()), []);
   const region = fixedRegion ?? user?.region ?? guessedRegion;
@@ -44,7 +52,7 @@ export function PresetSpin({
     setLoading(true);
     setError(null);
     const started = Date.now();
-    requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    revealPending.current = true;
     try {
       const excludeIds = [...shown.current.slice(-100), ...(user ? [] : localSeen().slice(-400))];
       const t = await api<Title>("/api/pick", {

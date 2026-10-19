@@ -53,7 +53,7 @@ func main() {
 			writeError(w, http.StatusBadRequest, "invalid title")
 			return
 		}
-		t, err := p.Lookup(r.Context(), media, id, orDefault(r.URL.Query().Get("region"), "US"))
+		t, err := p.Lookup(r.Context(), media, id, orDefault(r.URL.Query().Get("region"), picker.DefaultRegion))
 		switch {
 		case errors.Is(err, tmdb.ErrNotFound):
 			writeError(w, http.StatusNotFound, "Title not found.")
@@ -71,7 +71,7 @@ func main() {
 			writeError(w, http.StatusBadRequest, "invalid title")
 			return
 		}
-		t, err := p.Full(r.Context(), media, id, orDefault(r.URL.Query().Get("region"), "US"))
+		t, err := p.Full(r.Context(), media, id, orDefault(r.URL.Query().Get("region"), picker.DefaultRegion))
 		switch {
 		case errors.Is(err, tmdb.ErrNotFound):
 			writeError(w, http.StatusNotFound, "Title not found.")
@@ -114,7 +114,7 @@ func main() {
 		writeJSON(w, http.StatusOK, a)
 	})
 	mux.HandleFunc("GET /providers", func(w http.ResponseWriter, r *http.Request) {
-		region := strings.ToUpper(orDefault(r.URL.Query().Get("region"), "US"))
+		region := strings.ToUpper(orDefault(r.URL.Query().Get("region"), picker.DefaultRegion))
 		if len(region) != 2 {
 			writeError(w, http.StatusBadRequest, "invalid region")
 			return
@@ -136,7 +136,7 @@ func main() {
 			writeError(w, http.StatusBadRequest, "invalid request")
 			return
 		}
-		writeJSON(w, http.StatusOK, p.Services(r.Context(), req.IDs, orDefault(req.Region, "US")))
+		writeJSON(w, http.StatusOK, p.Services(r.Context(), req.IDs, orDefault(req.Region, picker.DefaultRegion)))
 	})
 	mux.HandleFunc("POST /ratings", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {

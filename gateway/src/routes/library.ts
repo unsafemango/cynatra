@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, requireDb } from "../auth.js";
+import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
 import { libraryStatus } from "./pick.js";
@@ -61,7 +62,7 @@ libraryRouter.get("/services", async (req, res) => {
     ),
   ]);
   const ids = [...new Set(titles.map((t) => t.title_id))];
-  const region = user[0]?.region ?? "US";
+  const region = user[0]?.region ?? DEFAULT_REGION;
   const { status, body } = await callPicker("/services", {
     method: "POST",
     body: JSON.stringify({ ids, region }),
@@ -138,7 +139,7 @@ libraryRouter.use((req, _res, next) => {
 
 async function libraryServices(userId: string): Promise<{ region: string; services: LibraryService[] }> {
   const { rows: user } = await pool!.query<{ region: string }>("SELECT region FROM users WHERE id = $1", [userId]);
-  const region = user[0]?.region ?? "US";
+  const region = user[0]?.region ?? DEFAULT_REGION;
   const cacheKey = `${userId}:${region}`;
   const cached = libraryServicesCache.get(cacheKey);
   if (cached && Date.now() - cached.at < LIBRARY_SERVICES_TTL) return { region, services: cached.services };
@@ -392,7 +393,7 @@ libraryRouter.get("/seen", async (req, res) => {
     await Promise.all(
       missing.rows.map(async ({ title_id }) => {
         const [media, id] = title_id.split(":");
-        const { status, body } = await callPicker(`/title/${media}/${id}?region=${region ?? "US"}`).catch(() => ({
+        const { status, body } = await callPicker(`/title/${media}/${id}?region=${region ?? DEFAULT_REGION}`).catch(() => ({
           status: 0,
           body: null,
         }));

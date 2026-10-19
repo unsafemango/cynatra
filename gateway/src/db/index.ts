@@ -10,9 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email         text NOT NULL UNIQUE,
   password_hash text NOT NULL,
-  region        text NOT NULL DEFAULT 'US',
+  region        text NOT NULL DEFAULT 'CA',
   created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- New accounts start in Canada, where Cynatra is made (it was the US before).
+ALTER TABLE users ALTER COLUMN region SET DEFAULT 'CA';
 
 -- Google sign-in: accounts can have a Google ID, a password, or both.
 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;

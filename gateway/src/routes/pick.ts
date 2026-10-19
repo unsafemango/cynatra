@@ -2,6 +2,7 @@ import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/index.js";
 import { callPicker } from "../picker.js";
+import { DEFAULT_REGION } from "../config.js";
 
 export const pickRouter = Router();
 
@@ -26,7 +27,7 @@ const pickRequest = z.object({
 
 // Streaming services in a country, for the Spin page's "Streaming on" filter.
 pickRouter.get("/providers", async (req, res) => {
-  const region = /^[A-Za-z]{2}$/.test(String(req.query.region)) ? String(req.query.region).toUpperCase() : "US";
+  const region = /^[A-Za-z]{2}$/.test(String(req.query.region)) ? String(req.query.region).toUpperCase() : DEFAULT_REGION;
   const { status, body } = await callPicker(`/providers?region=${region}`);
   res.status(status).json(body);
 });
@@ -80,7 +81,7 @@ const getTitle = (full: boolean) => async (req: Request<{ media: string; id: str
     res.status(400).json({ error: "Invalid title" });
     return;
   }
-  const region = /^[A-Za-z]{2}$/.test(String(req.query.region)) ? String(req.query.region) : "US";
+  const region = /^[A-Za-z]{2}$/.test(String(req.query.region)) ? String(req.query.region) : DEFAULT_REGION;
   const { status, body } = await callPicker(`/title/${media}/${id}${full ? "/full" : ""}?region=${region}`);
   res.status(status).json(body);
 };

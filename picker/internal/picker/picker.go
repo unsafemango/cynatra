@@ -23,6 +23,10 @@ const maxPages = 100
 
 var ErrNoMatch = errors.New("no titles match these filters")
 
+// DefaultRegion is the country for streaming availability when none is given:
+// Canada, where Cynatra is made.
+const DefaultRegion = "CA"
+
 type Request struct {
 	Type       string   `json:"type"` // movie | series | animation | any
 	Genres     []string `json:"genres"`
@@ -151,7 +155,7 @@ func Normalize(r *Request) error {
 		return fmt.Errorf("unknown look %q", r.Look)
 	}
 	if r.Region == "" {
-		r.Region = "US"
+		r.Region = DefaultRegion
 	}
 	r.Region = strings.ToUpper(r.Region)
 	if len(r.Services) > 30 {

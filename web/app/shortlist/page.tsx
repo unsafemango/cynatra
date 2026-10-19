@@ -9,6 +9,8 @@ import { TitleCard } from "@/components/TitleCard";
 import { TitleDetailsDialog } from "@/components/TitleDetailsDialog";
 import { api, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { guessRegion } from "@/lib/regions";
+import { revealResult } from "@/lib/scroll";
 import { SHORTLIST_MAX, useShortlist, type ShortlistItem } from "@/lib/shortlist";
 
 type Mode = "instant" | "knockout";
@@ -97,7 +99,7 @@ export default function ShortlistPage() {
     // Full details (trailer, where to watch) for the result card.
     const [media, tmdbId] = chosen.id.split(":");
     try {
-      const t = await api<Title>(`/api/title/${media}/${tmdbId}?region=${user?.region ?? "US"}`);
+      const t = await api<Title>(`/api/title/${media}/${tmdbId}?region=${user?.region ?? guessRegion()}`);
       if (alive()) setResult(t);
     } catch (e) {
       if (alive()) setResultError(e instanceof Error ? e.message : "Couldn't load the details.");
@@ -106,7 +108,7 @@ export default function ShortlistPage() {
 
   // Bring the result into view once it's ready.
   useEffect(() => {
-    if (result) resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (result) revealResult(resultRef.current);
   }, [result]);
 
   const resetPick = () => {

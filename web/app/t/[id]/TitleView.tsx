@@ -6,20 +6,26 @@ import { TitleCard } from "@/components/TitleCard";
 import { TitleInfo } from "@/components/TitleInfo";
 import { api, fromSlug, type FullTitle } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { DEFAULT_REGION, guessRegion } from "@/lib/regions";
 
 // Shareable page for a single title, e.g. /t/movie-603: the result card, then
 // everything else about it (cast, crew, seasons, more like this).
 //
-// `initial` is the server's render (US streaming info, what logged-out visitors
-// see). Logged-in visitors elsewhere get their own country's services in its
-// place. Without `initial` (the server couldn't reach the API), it loads here.
+// `initial` is the server's render, with streaming info for Canada (the default).
+// Visitors in another country (from their profile, or a guess when logged out)
+// get their own country's services in its place. Without `initial` (the server
+// couldn't reach the API), it loads here.
 export function TitleView({ slug, initial }: { slug: string; initial: FullTitle | null }) {
   const { user } = useAuth();
-  const region = user?.region ?? "US";
+  // Logged out: a guess, made after mount so server and client HTML match.
+  const [guessedRegion, setGuessedRegion] = useState(DEFAULT_REGION);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setGuessedRegion(guessRegion()), []);
+  const region = user?.region ?? guessedRegion;
   // Keyed by slug and region, so a "More like this" link never shows the old title's data.
   const [loaded, setLoaded] = useState<{ key: string; title?: FullTitle; error?: string } | null>(null);
   const key = `${slug}|${region}`;
-  const needsFetch = !initial || region !== "US";
+  const needsFetch = !initial || region !== DEFAULT_REGION;
 
   useEffect(() => {
     if (!needsFetch) return;

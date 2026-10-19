@@ -26,3 +26,6 @@ export const config = {
 if (process.env.NODE_ENV === "production" && config.jwtSecret === "dev-only-secret") {
   throw new Error("JWT_SECRET must be set in production");
 }
+
+/** Country for streaming availability when none is given: Canada, where Cynatra is made. */
+export const DEFAULT_REGION = "CA";

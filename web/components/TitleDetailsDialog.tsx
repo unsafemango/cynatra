@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, toSlug, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { guessRegion } from "@/lib/regions";
 import type { ShortlistItem } from "@/lib/shortlist";
 import { ResultCard } from "./ResultCard";
 
@@ -41,7 +42,7 @@ export function TitleDetailsDialog({
   useEffect(() => {
     let cancelled = false;
     const [media, id] = item.id.split(":");
-    api<Title>(`/api/title/${media}/${id}?region=${user?.region ?? "US"}`)
+    api<Title>(`/api/title/${media}/${id}?region=${user?.region ?? guessRegion()}`)
       .then((t) => !cancelled && setTitle(t))
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Couldn't load the details."));
     return () => {

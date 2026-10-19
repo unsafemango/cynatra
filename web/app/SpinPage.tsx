@@ -8,8 +8,9 @@ import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
 import { StableLabel } from "@/components/StableLabel";
 import { api, ApiError, fromSlug, type Filters, type Genre, type ProviderOption, type Title } from "@/lib/api";
-import { flag, guessRegion, regionName } from "@/lib/regions";
+import { DEFAULT_REGION, flag, guessRegion, regionName } from "@/lib/regions";
 import { useAuth } from "@/lib/auth";
+import { revealResult } from "@/lib/scroll";
 import { localSeen } from "@/lib/library";
 
 const FILTERS_KEY = "cynatra:filters";
@@ -34,7 +35,7 @@ export function SpinPage() {
   const [providers, setProviders] = useState<ProviderOption[] | null>(null);
   const [myServices, setMyServices] = useState<string[]>([]);
   // Logged out: a guess from the browser's languages (set after mount).
-  const [guessedRegion, setGuessedRegion] = useState("US");
+  const [guessedRegion, setGuessedRegion] = useState(DEFAULT_REGION);
   const region = user?.region ?? guessedRegion;
   const [result, setResult] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,14 @@ export function SpinPage() {
   const shown = useRef<string[]>([]);
   const shownWatchlist = useRef<string[]>([]);
   const resultRef = useRef<HTMLDivElement>(null);
+  // Set by a spin: show the loader, then the result, once each has rendered
+  // (scrolling before then lands on an empty, zero-height area).
+  const revealPending = useRef(false);
+  useEffect(() => {
+    if (!revealPending.current) return;
+    revealResult(resultRef.current);
+    if (!loading) revealPending.current = false;
+  }, [loading, result, error]);
   // Spin requested by the URL (?spin=1 or ?from=watchlist); runs once auth is known.
   const autoRun = useRef<Source | null>(null);
 
@@ -123,7 +132,7 @@ export function SpinPage() {
   const run = useCallback(async (from: Source, fetchTitle: () => Promise<Title>) => {
     setLoading(true);
     setError(null);
-    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    revealPending.current = true;
     const started = Date.now();
     try {
       const t = await fetchTitle();

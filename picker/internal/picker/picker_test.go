@@ -40,7 +40,7 @@ func TestBuildQueryAnimationRequiresAnimationGenre(t *testing.T) {
 
 func TestNormalize(t *testing.T) {
 	r := Request{Type: "Surprise"}
-	if err := Normalize(&r); err != nil || r.Type != "any" || r.Region != "US" {
+	if err := Normalize(&r); err != nil || r.Type != "any" || r.Region != "CA" {
 		t.Errorf("got %+v, %v", r, err)
 	}
 	if err := Normalize(&Request{Type: "podcast"}); err == nil {

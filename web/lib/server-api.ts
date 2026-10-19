@@ -1,4 +1,5 @@
 import { cacheLife } from "next/cache";
+import { DEFAULT_REGION } from "./regions";
 import { API_URL, fromSlug, type Filters, type FullTitle, type Person, type SearchHit } from "./api";
 
 // Server-side reads for pages search engines should see fully rendered (title
@@ -17,11 +18,11 @@ async function getJSON<T>(path: string): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-/** A title page's data from its URL slug (e.g. "movie-550"). US streaming info, like logged-out visitors get. */
+/** A title page's data from its URL slug (e.g. "movie-550"), with streaming info for Canada (the default). */
 export async function getTitle(slug: string): Promise<FullTitle | null> {
   const m = /^(movie|tv):(\d+)$/.exec(fromSlug(slug));
   if (!m) return null;
-  return getJSON<FullTitle>(`/api/title/${m[1]}/${m[2]}/full?region=US`);
+  return getJSON<FullTitle>(`/api/title/${m[1]}/${m[2]}/full?region=${DEFAULT_REGION}`);
 }
 
 export async function getPerson(id: string): Promise<Person | null> {

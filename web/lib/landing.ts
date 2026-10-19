@@ -1,4 +1,5 @@
 import type { Filters } from "./api";
+import { DEFAULT_REGION, regionName } from "./regions";
 
 // Landing pages for what people search for ("random horror movie generator",
 // "what to watch on Netflix tonight"): each one spins with preset filters and
@@ -46,7 +47,7 @@ const random = (
   filters: { minRating: MIN_RATING, ...filters },
   spinLabel: `🎲 Spin a random ${noun}`,
   gridHeading: `Popular ${noun}s to start with`,
-  listRegion: "US",
+  listRegion: DEFAULT_REGION,
   faq,
 });
 
@@ -245,7 +246,7 @@ const streaming = (
   intro,
   filters: { type: "any", minRating: MIN_RATING, services: [serviceKey] },
   spinLabel: `🎲 Spin something on ${service}`,
-  gridHeading: `Popular on ${service}${listRegion === "CA" ? " in Canada" : " in the US"}`,
+  gridHeading: `Popular on ${service} in ${listRegion === "US" ? "the US" : regionName(listRegion)}`,
   listRegion,
   spinRegion: onlyIn?.region,
   faq: [
@@ -267,15 +268,15 @@ const streaming = (
 });
 
 export const STREAMING_PAGES: Landing[] = [
-  streaming("netflix", "Netflix", "netflix", "US", [
+  streaming("netflix", "Netflix", "netflix", "CA", [
     "Netflix has thousands of titles and a home screen that changes every day, which is why choosing takes so long. Spin for one well-rated movie or series that's on Netflix in your country right now.",
     "Want just movies, or just a genre? Open the Spin page, choose Netflix under Streaming on, and add any filters you like.",
   ]),
-  streaming("amazon-prime-video", "Prime Video", "amazon-prime-video", "US", [
+  streaming("amazon-prime-video", "Prime Video", "amazon-prime-video", "CA", [
     "Prime Video mixes what's included with your membership and what costs extra. Spins here only pick titles included with Prime in your country, so you won't land on a rental.",
     "Each pick shows the trailer, IMDb rating and runtime.",
   ]),
-  streaming("disney-plus", "Disney+", "disney-plus", "US", [
+  streaming("disney-plus", "Disney+", "disney-plus", "CA", [
     "Marvel, Star Wars, Pixar, National Geographic and decades of Disney classics: spin for one well-rated title on Disney+ in your country.",
     "Great for family nights: spins show the age rating on each title page.",
   ]),
@@ -287,11 +288,11 @@ export const STREAMING_PAGES: Landing[] = [
     "HBO series, Warner Bros. movies and more: spin for a random, well-rated title streaming on HBO Max in your country.",
     "Each pick shows the trailer and how many seasons a series has.",
   ]),
-  streaming("apple-tv", "Apple TV+", "apple-tv", "US", [
+  streaming("apple-tv", "Apple TV+", "apple-tv", "CA", [
     "Apple TV+ has a smaller catalogue of originals that's easy to overlook. Spin for one of its well-rated movies or series.",
     "Each pick shows the trailer, rating and where else it's streaming.",
   ]),
-  streaming("paramount-plus", "Paramount+", "paramount-plus", "US", [
+  streaming("paramount-plus", "Paramount+", "paramount-plus", "CA", [
     "From Star Trek and Yellowstone spin-offs to Paramount movies: spin for a well-rated title on Paramount+ in your country.",
     "Spin again as often as you like; picks don't repeat during your visit.",
   ]),
