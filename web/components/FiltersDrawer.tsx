@@ -7,7 +7,8 @@ import { describeFilters, FilterPanel } from "./FilterPanel";
 /**
  * Every spin filter in one panel over the page: a sheet from the bottom on
  * phones, a side panel on the right elsewhere. Changes are a draft until
- * "Apply filters"; × / Esc / a click outside closes without applying.
+ * "Apply filters"; × / Esc / a click outside closes without applying. It slides
+ * in when it opens and back out when it closes, however it's closed.
  */
 export function FiltersDrawer({
   filters,
@@ -31,6 +32,30 @@ export function FiltersDrawer({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState<Filters>(filters);
+  // Closing: the slide-out is playing; `afterClose` (close, or apply) runs when it ends.
+  const [closing, setClosing] = useState(false);
+  const afterClose = useRef<(() => void) | null>(null);
+  const fallback = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  /** Plays the slide-out, then runs `then` (once). Instant with reduced motion. */
+  const leave = (then: () => void) => {
+    if (afterClose.current) return; // already leaving
+    let done = false;
+    afterClose.current = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(fallback.current);
+      then();
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      afterClose.current();
+      return;
+    }
+    setClosing(true);
+    // In case the animation's end event never arrives (e.g. the tab is hidden).
+    fallback.current = setTimeout(() => afterClose.current?.(), 400);
+  };
+  useEffect(() => () => clearTimeout(fallback.current), []);
 
   // Open as a modal (focus moves in and stays, Escape closes); stop the page scrolling behind it.
   useEffect(() => {
@@ -53,12 +78,16 @@ export function FiltersDrawer({
       ref={dialog}
       aria-labelledby="filters-title"
       onCancel={(e) => {
-        e.preventDefault(); // let React unmount it
-        onClose();
+        e.preventDefault(); // slide out, then let React unmount it
+        leave(onClose);
       }}
       // A click on the backdrop lands on the <dialog> itself.
-      onClick={(e) => e.target === dialog.current && onClose()}
-      className="animate-sheet m-0 mt-auto flex h-[92dvh] max-h-none w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-border bg-background p-0 text-foreground shadow-2xl shadow-black/50 backdrop:bg-black/60 backdrop:backdrop-blur-sm sm:ml-auto sm:mt-0 sm:h-dvh sm:max-w-md sm:rounded-none sm:rounded-l-3xl"
+      onClick={(e) => e.target === dialog.current && leave(onClose)}
+      // The panel's own slide-out (not a chip's or placeholder's animation inside it).
+      onAnimationEnd={(e) => {
+        if (closing && e.target === dialog.current && e.animationName.startsWith("sheet-")) afterClose.current?.();
+      }}
+      className={`${closing ? "animate-sheet-out pointer-events-none" : "animate-sheet"} m-0 mt-auto flex h-[92dvh] max-h-none w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-border bg-background p-0 text-foreground shadow-2xl shadow-black/50 backdrop:bg-black/60 backdrop:backdrop-blur-sm sm:ml-auto sm:mt-0 sm:h-dvh sm:max-w-md sm:rounded-none sm:rounded-l-3xl`}
     >
       <header className="flex items-center gap-3 border-b border-border px-5 py-4">
         <span className="grid size-9 place-items-center rounded-xl bg-accent text-white" aria-hidden>
@@ -81,7 +110,7 @@ export function FiltersDrawer({
           <p className="text-xs text-muted">{count === 0 ? "No filters" : `${count} active`}</p>
         </div>
         <button
-          onClick={onClose}
+          onClick={() => leave(onClose)}
           aria-label="Close filters without applying"
           className="grid size-9 place-items-center rounded-full text-xl text-muted hover:bg-surface-2 hover:text-foreground"
         >
@@ -108,7 +137,7 @@ export function FiltersDrawer({
           Reset
         </button>
         <button
-          onClick={() => onApply(draft)}
+          onClick={() => leave(() => onApply(draft))}
           className="rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-accent/25 hover:brightness-110"
         >
           {changed ? "Apply filters" : "Done"}

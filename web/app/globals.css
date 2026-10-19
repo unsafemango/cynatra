@@ -184,6 +184,32 @@ body {
   .animate-sheet { animation-name: sheet-left; }
 }
 
+/* ...and slides back out the same way when it closes, a little quicker and
+   speeding up as it goes (it's leaving). The dimmed page fades in and out with it. */
+@keyframes sheet-down {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+@keyframes sheet-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes backdrop-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.animate-sheet::backdrop { animation: backdrop-in 0.28s ease-out both; }
+.animate-sheet-out { animation: sheet-down 0.22s cubic-bezier(0.4, 0, 1, 1) both; }
+.animate-sheet-out::backdrop { animation: backdrop-out 0.22s ease-in both; }
+@media (min-width: 640px) {
+  .animate-sheet-out { animation-name: sheet-right; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-reel, .animate-reveal, .animate-pop, .animate-sheet { animation: none; }
+  .animate-reel, .animate-reveal, .animate-pop, .animate-sheet, .animate-sheet-out { animation: none; }
+  .animate-sheet::backdrop, .animate-sheet-out::backdrop { animation: none; }
 }
