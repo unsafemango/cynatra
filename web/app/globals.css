@@ -47,6 +47,21 @@
   }
 }
 
+/* Staging (staging.cynatra.app) swaps the red accent for purple, so it's never
+   mistaken for the live site. data-env is set before the first paint by the
+   same script as the theme (lib/theme-script.ts): the same build serves both. */
+:root[data-env="staging"] {
+  --accent: #9b6dff;
+}
+:root[data-env="staging"][data-theme="light"] {
+  --accent: #7c3aed;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-env="staging"]:not([data-theme]) {
+    --accent: #7c3aed;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
