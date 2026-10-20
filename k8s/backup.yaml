@@ -44,6 +44,9 @@ spec:
               args:
                 - |
                   set -eu
+                  # A new pod is let through the network policies a moment after it
+                  # starts, so wait (up to a minute) until the database answers.
+                  for i in $(seq 1 30); do pg_isready -q -t 2 && break; sleep 2; done
                   name="cynatra-$(date -u +%Y-%m-%dT%H%MZ).sql.gz"
                   # --clean --if-exists: a restore replaces the tables instead of clashing with them.
                   pg_dump --no-owner --clean --if-exists | gzip -9 > "/dump/$name"
