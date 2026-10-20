@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       # The latest 1.26 patch, like the picker's Docker image (golang:1.26-alpine),
       # not go.mod's minimum: standard-library fixes ship in patch releases.
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           check-latest: true
