@@ -1,0 +1,17 @@
+name: Bug report
+description: Something on Cynatra isn't working right
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened?, description: And what you expected instead. }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce, placeholder: "1. Go to …\n2. Tap …\n3. See …" }
+  - type: input
+    id: where
+    attributes: { label: Where, description: "Page URL, and staging or production" }
+  - type: input
+    id: device
+    attributes: { label: Device and browser, placeholder: "iPhone 16, Safari" }
