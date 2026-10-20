@@ -122,7 +122,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: { name: production, url: "https://cynatra.app" }
-    concurrency: { group: deploy-production, cancel-in-progress: false }
+    # A newer release replaces an older one still waiting for approval, so only
+    # the latest ever asks (and approving can't deploy an outdated commit).
+    # Without this, a waiting release held the slot and newer ones queued
+    # behind it. A deploy already running takes seconds; one cut short by a
+    # newer approved release is simply superseded by it.
+    concurrency: { group: deploy-production, cancel-in-progress: true }
     steps:
       - uses: actions/checkout@v4 # for .github/scripts/deploy.sh
       - name: Deploy to production
