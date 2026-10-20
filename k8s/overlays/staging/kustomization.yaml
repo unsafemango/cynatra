@@ -1,0 +1,17 @@
+# Staging: https://staging.cynatra.app, behind a password and hidden from
+# search engines, with its own database (test data) and secrets. Every push to
+# main deploys here first (DEPLOY.md, "Staging and production"). No backups.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cynatra-staging
+
+resources:
+  - namespace.yaml
+  - ../../base
+  - middlewares.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: cynatra-config
+    literals:
+      - CORS_ORIGIN=https://staging.cynatra.app

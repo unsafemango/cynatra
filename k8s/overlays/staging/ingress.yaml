@@ -1,0 +1,45 @@
+# https://staging.cynatra.app. Two routes, because the password prompt can only
+# go on the pages: the app sends its login token in the same Authorization
+# header the prompt uses, so the API (staging's test data only, rate-limited)
+# stays open. Middleware names are <namespace>-<name>@kubernetescrd.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cynatra
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      cynatra-staging-redirect-https@kubernetescrd,cynatra-staging-noindex@kubernetescrd,cynatra-staging-basic-auth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [staging.cynatra.app]
+      secretName: cynatra-tls
+  rules:
+    - host: staging.cynatra.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 3000 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cynatra-api
+  annotations:
+    # Same certificate as the pages (requested by the ingress above).
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      cynatra-staging-redirect-https@kubernetescrd,cynatra-staging-noindex@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [staging.cynatra.app]
+      secretName: cynatra-tls
+  rules:
+    - host: staging.cynatra.app
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 4000 } } }

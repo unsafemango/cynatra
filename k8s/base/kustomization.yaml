@@ -1,30 +1,21 @@
-# Cynatra on k3s. Deploy with:  kubectl apply -k k8s/
-# The secret `cynatra-secrets` must exist first (DEPLOY.md, step 7).
+# The app itself, shared by both environments (k8s/overlays/staging and
+# k8s/overlays/prod add the namespace, address and environment-only pieces).
+# Deploys normally come from GitHub Actions (DEPLOY.md, "Staging and production").
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: cynatra
 
 resources:
-  - namespace.yaml
   - cluster-issuer.yaml
   - postgres.yaml
   - redis.yaml
-  - backup.yaml
   - picker.yaml
   - gateway.yaml
   - web.yaml
   - network-policies.yaml
   - redirect-https.yaml
-  - ingress.yaml
 
-# Non-secret settings. The domain also appears in ingress.yaml.
-configMapGenerator:
-  - name: cynatra-config
-    literals:
-      - CORS_ORIGIN=https://cynatra.app,https://www.cynatra.app
-
-# Images built by GitHub Actions. Pin a tag (e.g. sha-abc1234) instead of
-# latest for reproducible deploys.
+# Images built by GitHub Actions. Deploys pin them to the exact commit
+# (sha-<commit>); `latest` is only for applying by hand.
 images:
   - name: cynatra-web
     newName: ghcr.io/unsafemango/cynatra-web

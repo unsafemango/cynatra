@@ -1,0 +1,17 @@
+# Production: https://cynatra.app (and www, redirected), with nightly backups.
+# Deployed when a release is approved in GitHub Actions (DEPLOY.md).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cynatra
+
+resources:
+  - namespace.yaml
+  - ../../base
+  - backup.yaml
+  - redirect-www.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: cynatra-config
+    literals:
+      - CORS_ORIGIN=https://cynatra.app,https://www.cynatra.app

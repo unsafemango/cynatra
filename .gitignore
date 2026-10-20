@@ -8,3 +8,4 @@ dist/
 
 # Claude Code local settings (e.g. browser preview config)
 .claude/
+staging-login.txt

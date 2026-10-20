@@ -12,7 +12,7 @@ name: Images
 on:
   push:
     branches: [main]
-    paths: ["web/**", "gateway/**", "picker/**", ".github/workflows/images.yml"]
+    paths: ["web/**", "gateway/**", "picker/**", "k8s/**", ".github/workflows/images.yml"]
   workflow_dispatch:
 
 permissions:
@@ -98,32 +98,35 @@ jobs:
       - name: Check both platforms are there
         run: docker buildx imagetools inspect "$IMAGE:latest"
 
-  # Restart web, gateway and picker on the server so they pull the new images.
-  # The deploy key can only run /usr/local/bin/cynatra-deploy (forced command in
-  # the server's authorized_keys), so the command is whatever that script does.
-  # Changes under k8s/ are still applied by hand (DEPLOY.md, "Updating later").
-  deploy:
+  # Deploys this commit: to staging straight away, then to production once
+  # approved (the "production" environment requires a reviewer). The deploy key
+  # can only run /usr/local/bin/cynatra-deploy on the server (forced command in
+  # its authorized_keys): "deploy <staging|prod> <commit>" fetches that commit's
+  # k8s/ overlay from GitHub, pins the images to sha-<commit> and applies it.
+  deploy-staging:
     needs: merge
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    concurrency: { group: deploy, cancel-in-progress: false }
-    env:
-      HOST: ubuntu@140.238.158.170
+    environment: { name: staging, url: "https://staging.cynatra.app" }
+    concurrency: { group: deploy-staging, cancel-in-progress: false }
     steps:
-      - name: Restart the services on the server
+      - uses: actions/checkout@v4 # for .github/scripts/deploy.sh
+      - name: Deploy to staging
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          # Bots probing port 22 can get a new connection dropped: retry those
-          # (ssh exits 255), but not a failed deploy.
-          for i in 1 2 3 4 5; do
-            rc=0
-            ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o ConnectTimeout=20 "$HOST" || rc=$?
-            [ "$rc" -ne 255 ] && exit "$rc"
-            echo "Couldn't connect (attempt $i), retrying"; sleep 15
-          done
-          exit 1
+        run: .github/scripts/deploy.sh staging "$GITHUB_SHA"
+
+  deploy-production:
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: { name: production, url: "https://cynatra.app" }
+    concurrency: { group: deploy-production, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4 # for .github/scripts/deploy.sh
+      - name: Deploy to production
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: .github/scripts/deploy.sh prod "$GITHUB_SHA"

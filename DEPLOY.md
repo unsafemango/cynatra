@@ -5,10 +5,11 @@ This guide puts the whole app (web, gateway, picker, Postgres, Redis) on a singl
 Kubernetes. Within Oracle's free limits it costs nothing; you only pay for a domain
 (about $10 a year).
 
-> **Status:** everything except backups is in the repo: the Kubernetes manifests
-> (`k8s/`) and the GitHub Actions image build (`.github/workflows/images.yml`).
-> The manifests are set up for `cynatra.app`; for another domain, change it in
-> `k8s/ingress.yaml` and `k8s/kustomization.yaml`.
+> **Status:** everything is in the repo: the Kubernetes manifests (`k8s/`: a
+> shared `base` plus `overlays/staging` and `overlays/prod`) and the GitHub
+> Actions build and deploy (`.github/workflows/images.yml`). The manifests are
+> set up for `cynatra.app`; for another domain, change it in each overlay's
+> `ingress.yaml` and `kustomization.yaml`.
 
 ---
 
@@ -249,7 +250,7 @@ git clone https://github.com/unsafemango/cynatra.git && cd cynatra
 ```
 
 ```bash
-kubectl apply -k k8s/
+kubectl apply -k k8s/overlays/prod
 ```
 
 ```bash
@@ -259,40 +260,59 @@ kubectl -n cynatra get pods
 When every pod is `Running`, open **https://yourdomain.com**. The first HTTPS
 certificate can take a minute.
 
-## 10. Updating later
+## 10. Staging and production
 
-Push to `main`. GitHub Actions builds new images, and its **deploy** job then
-restarts web, gateway and picker on the server so they pull them (about 10
-minutes in all; watch it under the repo's **Actions** tab).
+Two copies of Cynatra run on the server, fully separate (own namespace,
+database, secrets and certificate):
 
-The deploy job uses its own SSH key, which can only run the restart:
+| | Staging | Production |
+|---|---|---|
+| Address | https://staging.cynatra.app (password) | https://cynatra.app |
+| Manifests | `k8s/overlays/staging` | `k8s/overlays/prod` |
+| Namespace | `cynatra-staging` | `cynatra` |
+| Deployed | automatically, on every push to `main` | when you approve it |
 
-1. Make a key pair just for GitHub: `ssh-keygen -t ed25519 -N "" -C github-actions-deploy -f deploy_key`
-2. On the server, save the restart script as `/usr/local/bin/cynatra-deploy`
-   (`kubectl -n cynatra rollout restart deploy/web deploy/gateway deploy/picker`,
-   then `rollout status` for each) and make it executable.
-3. Add the public key to the server's `~/.ssh/authorized_keys`, forced to that
-   script: `restrict,command="/usr/local/bin/cynatra-deploy" ssh-ed25519 AAAA… github-actions-deploy`
-4. Add two repo secrets (Settings → Secrets and variables → Actions):
-   `DEPLOY_SSH_KEY` (the private key file) and `DEPLOY_KNOWN_HOSTS`
-   (`ssh-keyscan -t ed25519 YOUR_SERVER_IP`). Then delete the local private key.
+**Releasing:** push to `main`. GitHub Actions builds the images, deploys that
+commit to staging, then waits. Check https://staging.cynatra.app; when it's
+good, open the run under **Actions → Images**, click **Review deployments**,
+tick **production** and **Approve and deploy**. Production gets exactly the
+images staging ran (tagged `sha-<commit>`).
 
-To restart by hand instead:
+**Rolling back:** re-run the **deploy-production** job of an older run (or
+**Run workflow** on an older commit). Every deploy is one exact commit.
+
+**How deploys reach the server:** GitHub's deploy key can only run
+`/usr/local/bin/cynatra-deploy` (a forced command in the server's
+`~/.ssh/authorized_keys`), as `deploy <staging|prod> <commit>`. The script
+downloads that commit's `k8s/` from GitHub, pins the images to that commit,
+applies the environment's overlay and waits for the rollout. It refuses
+anything else. The repo secrets `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` hold
+the key and the server's fingerprint; the `production` environment (repo
+**Settings → Environments**) lists you as required reviewer.
+
+**Staging's password:** a Traefik `basicAuth` on the pages (not the API: the
+app's login token uses the same `Authorization` header). The users live in the
+`staging-basic-auth` secret. To set a new password:
 
 ```bash
-ssh ubuntu@YOUR_SERVER_IP 'kubectl -n cynatra rollout restart deploy/web deploy/gateway deploy/picker'
+htpasswd -nbB cynatra 'NEW-PASSWORD' | ssh ubuntu@YOUR_SERVER_IP 'kubectl -n cynatra-staging create secret generic staging-basic-auth --from-file=users=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -'
 ```
 
-If the manifests in `k8s/` changed, apply them from your laptop first:
+**Setting staging up** (once): an `A` record for `staging` (DNS only), staging's
+own `cynatra-secrets` in `cynatra-staging` (like step 7, with a new
+`JWT_SECRET` and `POSTGRES_PASSWORD`), the `staging-basic-auth` secret, and
+`https://staging.cynatra.app` in the Google OAuth client's JavaScript origins.
+
+**By hand:** apply an overlay from your laptop (uses `latest` images):
 
 ```bash
-kubectl kustomize k8s/ | ssh ubuntu@YOUR_SERVER_IP kubectl apply -f -
+kubectl kustomize k8s/overlays/prod | ssh ubuntu@YOUR_SERVER_IP kubectl apply -f -
 ```
 
 ## 11. Backups (recommended)
 
 Your accounts, watchlists and history live in Postgres on the server's disk.
-`k8s/backup.yaml` dumps the database every night at 3:30 (Toronto time) and
+`k8s/overlays/prod/backup.yaml` dumps the database every night at 3:30 (Toronto time) and
 uploads it to a private bucket in Oracle's free **Object Storage** (20 GB free),
 which survives even if the server doesn't. Files older than 30 days are deleted
 automatically, so there's always a month of daily restore points.
@@ -316,7 +336,7 @@ kubectl -n cynatra create secret generic cynatra-backup-s3 \
 ```
 
 5. Set your Object Storage namespace (`oci os ns get`) and region in the
-   `ENDPOINT` line of `k8s/backup.yaml`, then apply `k8s/` as usual.
+   `ENDPOINT` line of `k8s/overlays/prod/backup.yaml`, then apply the prod overlay.
 
 **Check on it:**
 
