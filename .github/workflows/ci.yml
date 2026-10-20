@@ -1,0 +1,107 @@
+# Checks every pull request (and main): each job must pass before a PR can be
+# merged (the main branch ruleset requires them by these job names). Deploying
+# is the Images workflow's job, after the merge.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same PR cancels the older run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: web (lint, types, build)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx eslint app components lib
+      # Next.js generates the route types (PageProps, LayoutProps) the type check needs.
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      # Same as the production image: the API on the same domain.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ""
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  gateway:
+    name: gateway (types, tests)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: gateway } }
+    # The sign-up and Google sign-in tests run against a real Postgres: a
+    # throwaway container that only lives for this job, so no password ("trust").
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cynatra
+          POSTGRES_DB: cynatra
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cynatra" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gateway/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # The example settings point at the Postgres service above.
+      - run: cp .env.example .env
+      - run: npm test
+
+  picker:
+    name: picker (format, vet, tests)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: picker } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          check-latest: true
+          cache-dependency-path: picker/go.sum
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "Run gofmt on:"; echo "$unformatted"; exit 1; fi
+      - run: go vet ./...
+      - run: go test ./...
+
+  k8s:
+    name: k8s (overlays render)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Both environments' manifests must still build (kubectl ships with kustomize).
+      - run: |
+          for env in staging prod; do
+            kubectl kustomize "k8s/overlays/$env" > "/tmp/$env.yaml"
+            echo "$env: $(grep -c '^kind:' "/tmp/$env.yaml") objects"
+          done
+
+  workflows:
+    name: workflows (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color
