@@ -39,8 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image" },
   // Installed on an iPhone home screen: full-screen, named Cynatra, with the
-  // status bar over the page (the header leaves room for it).
-  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
+  // page starting below the status bar. Drawing under it ("black-translucent")
+  // let iOS blur the top of the page, header included, like frosted glass.
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
