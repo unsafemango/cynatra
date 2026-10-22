@@ -12,7 +12,7 @@ name: Images
 on:
   push:
     branches: [main]
-    paths: ["web/**", "gateway/**", "picker/**", "k8s/**", ".github/workflows/images.yml"]
+    paths: ["web/**", "gateway/**", "picker/**", "k8s/**", ".github/workflows/images.yml", ".github/scripts/**"]
   workflow_dispatch:
 
 permissions:
