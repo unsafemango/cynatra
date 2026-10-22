@@ -26,7 +26,7 @@ export function ScrollToTop() {
       aria-label="Back to top"
       title="Back to top"
       // `invisible` also takes it out of the tab order while hidden.
-      className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-30 grid size-11 place-items-center rounded-full border border-border bg-surface/90 text-foreground shadow-lg shadow-black/40 backdrop-blur transition-all duration-200 hover:border-muted hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent sm:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-6 ${
+      className={`fixed bottom-[calc(var(--tabbar-h)+1rem)] right-5 z-30 grid size-11 place-items-center rounded-full border border-border bg-surface/90 text-foreground shadow-lg shadow-black/40 backdrop-blur transition-all duration-200 hover:border-muted hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent sm:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-6 ${
         visible ? "visible translate-y-0 opacity-100" : "invisible translate-y-2 opacity-0"
       }`}
     >

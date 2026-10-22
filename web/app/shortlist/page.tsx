@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
-import { Spinner } from "@/components/icons";
+import { ClearButton } from "@/components/ClearButton";
+import { SearchIcon, Spinner } from "@/components/icons";
 import { TitleCard } from "@/components/TitleCard";
 import { TitleDetailsDialog } from "@/components/TitleDetailsDialog";
 import { api, type Title } from "@/lib/api";
@@ -271,7 +272,7 @@ export default function ShortlistPage() {
       )}
 
       {showResult && (
-        <div ref={resultRef} className="scroll-mt-20 space-y-3">
+        <div ref={resultRef} className="space-y-3">
           <p className="text-center text-sm text-muted">🏆 Tonight&apos;s pick</p>
           {result ? (
             <TitleCard
@@ -372,6 +373,7 @@ function Slot({
 /** Find a specific movie or series by name and add it. */
 function Search({ disabled }: { disabled: boolean }) {
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const [results, setResults] = useState<ShortlistItem[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -401,23 +403,17 @@ function Search({ disabled }: { disabled: boolean }) {
         Search for a movie or series
       </label>
       <div className="relative">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          aria-hidden
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
+        {/* The magnifier turns into a spinner while searching. */}
+        {searching ? (
+          <Spinner className="animate-spin pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+        ) : (
+          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+        )}
         <input
+          ref={searchInput}
           id="shortlist-search"
           type="search"
+          enterKeyHint="search"
           value={query}
           disabled={disabled}
           onChange={(e) => {
@@ -428,7 +424,15 @@ function Search({ disabled }: { disabled: boolean }) {
           autoComplete="off"
           className="w-full rounded-2xl border border-border bg-surface py-3.5 pl-11 pr-11 placeholder:text-muted/60 hover:border-muted/70 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 disabled:opacity-60"
         />
-        {searching && <Spinner className="animate-spin absolute right-4 top-1/2 -translate-y-1/2 text-muted" />}
+        {query && !disabled && (
+          <ClearButton
+            onClear={() => {
+              setQuery("");
+              setResults(null);
+              searchInput.current?.focus();
+            }}
+          />
+        )}
       </div>
 
       {error && <p className="mt-2 text-sm text-accent">{error}</p>}

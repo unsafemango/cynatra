@@ -297,7 +297,7 @@ export default function LibraryPage() {
         />
       )}
 
-      <div ref={listTop} className="mt-6 scroll-mt-20">
+      <div ref={listTop} className="mt-6">
         {notice && (
           <p role="status" className="mb-4 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30 text-sm">
             {notice}

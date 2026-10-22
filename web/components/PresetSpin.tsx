@@ -85,7 +85,7 @@ export function PresetSpin({
         {loading ? "Spinning…" : result ? "🎲 Spin again" : label}
       </button>
 
-      <div ref={resultRef} className="scroll-mt-20">
+      <div ref={resultRef}>
         {loading && <SpinLoader />}
         {!loading && error && (
           <div className="rounded-2xl border border-border bg-surface p-8 text-center">

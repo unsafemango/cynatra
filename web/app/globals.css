@@ -106,6 +106,35 @@
   mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
 }
 
+/* Heights of the sticky header and (phones) the bottom tab bar, both padded
+   for the notch and home bar when installed on an iPhone. Anything scrolled
+   into view (spin results, #anchors) stops just below the header. */
+:root {
+  --header-h: calc(3.5rem + 1px + env(safe-area-inset-top));
+  --tabbar-h: calc(3.5rem + 1px + env(safe-area-inset-bottom));
+  scroll-padding-top: calc(var(--header-h) + 0.75rem);
+  scroll-padding-bottom: var(--tabbar-h);
+}
+@media (min-width: 640px) {
+  :root {
+    --tabbar-h: 0px;
+  }
+}
+
+/* Feels like an app on touch screens: no grey flash on tap, no double-tap zoom delay. */
+a,
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Search boxes draw their own clear (×) button. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 body {
   background:
     radial-gradient(1200px 600px at 50% -200px, #ff5a5f22, transparent 70%),
