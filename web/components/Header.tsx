@@ -13,10 +13,9 @@ import { Logo } from "./Logo";
 export function Header() {
   return (
     // Padded for the notch when installed on an iPhone (the status bar sits over the page).
-    <header className="border-b border-border/60 bg-background/85 backdrop-blur-lg sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
-      {/* Behind the status bar (clock, battery) when installed: solid, not see-through.
-          Blurred page content scrolling under the clock looked out of focus. */}
-      <div aria-hidden className="absolute inset-x-0 top-0 h-[env(safe-area-inset-top)] bg-background" />
+    // Phones: solid. Installed on an iPhone, Safari drew the logo and links of a
+    // sticky, see-through (backdrop-blur) header out of focus.
+    <header className="border-b border-border/60 bg-background sm:bg-background/85 sm:backdrop-blur-lg sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <Link href="/" aria-label="Cynatra home" className="whitespace-nowrap shrink-0 rounded-md">
           {/* Phones have the main pages in the tab bar at the bottom, so there's room for the name. */}

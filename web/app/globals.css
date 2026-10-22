@@ -137,7 +137,7 @@ input[type="search"]::-webkit-search-cancel-button {
 
 body {
   background:
-    radial-gradient(1200px 600px at 50% -200px, #ff5a5f22, transparent 70%),
+    radial-gradient(1200px 600px at 50% -200px, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
