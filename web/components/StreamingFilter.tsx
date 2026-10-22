@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ProviderOption } from "@/lib/api";
+import { ClearButton } from "./ClearButton";
 
 const TOP = 10; // services shown before "Show all"
 
@@ -26,6 +27,7 @@ export function StreamingFilter({
 }) {
   const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
 
   if (!options) {
     // Placeholders the size of the real chips, so nothing moves when they arrive.
@@ -52,14 +54,25 @@ export function StreamingFilter({
   return (
     <div className="space-y-3">
       {showAll && (
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Search ${options.length} services…`}
-          aria-label="Search streaming services"
-          className="w-full rounded-xl border border-border bg-background/60 px-3.5 py-2 text-sm placeholder:text-muted/60 focus:border-accent focus:outline-none sm:max-w-xs"
-        />
+        <div className="relative sm:max-w-xs">
+          <input
+            ref={searchInput}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${options.length} services…`}
+            aria-label="Search streaming services"
+            className="w-full rounded-xl border border-border bg-background/60 py-2 pl-3.5 pr-10 text-base placeholder:text-muted/60 focus:border-accent focus:outline-none sm:text-sm"
+          />
+          {query && (
+            <ClearButton
+              onClear={() => {
+                setQuery("");
+                searchInput.current?.focus();
+              }}
+            />
+          )}
+        </div>
       )}
       <div className={`flex flex-wrap gap-2 ${showAll ? "max-h-64 overflow-y-auto pr-1" : ""}`}>
         {shown.map((o) => {

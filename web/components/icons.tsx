@@ -95,3 +95,37 @@ export const Spinner = (p: SVGProps<SVGSVGElement>) => (
     <path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
   </svg>
 );
+
+export const DiceIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="4" />
+    <path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01" strokeWidth="2.6" />
+  </Icon>
+);
+
+export const CompassIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m15.5 8.5-2 5-5 2 2-5Z" />
+  </Icon>
+);
+
+export const BookmarkIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M6.5 4.5h11v15.5L12 16l-5.5 4Z" />
+  </Icon>
+);
+
+export const LibraryIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="4.5" height="16" rx="1" />
+    <rect x="9.5" y="4" width="4.5" height="16" rx="1" />
+    <path d="m15.6 5.4 3.6-1 2.9 14.7-3.6 1Z" />
+  </Icon>
+);
+
+export const CloseIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+  </Icon>
+);

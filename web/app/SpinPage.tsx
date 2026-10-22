@@ -10,7 +10,7 @@ import { StableLabel } from "@/components/StableLabel";
 import { api, ApiError, fromSlug, type Filters, type Genre, type ProviderOption, type Title } from "@/lib/api";
 import { DEFAULT_REGION, flag, guessRegion, regionName } from "@/lib/regions";
 import { useAuth } from "@/lib/auth";
-import { revealResult } from "@/lib/scroll";
+import { isOnScreen, revealResult } from "@/lib/scroll";
 import { localSeen } from "@/lib/library";
 
 const FILTERS_KEY = "cynatra:filters";
@@ -56,6 +56,27 @@ export function SpinPage() {
     revealResult(resultRef.current);
     if (!loading) revealPending.current = false;
   }, [loading, result, error]);
+  // The buttons that spin again; when none is on screen, a floating one shows.
+  const spinBtnRef = useRef<HTMLButtonElement>(null);
+  const rerollTopRef = useRef<HTMLDivElement>(null);
+  const rerollBottomRef = useRef<HTMLDivElement>(null);
+  const [floatReroll, setFloatReroll] = useState(false);
+  const hasResult = !!result && !loading;
+  useEffect(() => {
+    if (!hasResult) {
+      setFloatReroll(false); // eslint-disable-line react-hooks/set-state-in-effect
+      return;
+    }
+    const check = () =>
+      setFloatReroll(![spinBtnRef, rerollTopRef, rerollBottomRef].some((r) => isOnScreen(r.current)));
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, [hasResult]);
   // Spin requested by the URL (?spin=1 or ?from=watchlist); runs once auth is known.
   const autoRun = useRef<Source | null>(null);
 
@@ -138,6 +159,9 @@ export function SpinPage() {
       const t = await fetchTitle();
       await new Promise((r) => setTimeout(r, Math.max(0, MIN_SPIN_MS - (Date.now() - started))));
       setResult(t);
+      // A little tap on phones that support it (Android), like a reel stopping.
+      // Only after a real tap: browsers refuse it (and log an error) otherwise.
+      if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(12);
       setSource(from);
       setRestored(false);
       try {
@@ -222,6 +246,7 @@ export function SpinPage() {
       <section aria-label="Spin" className="mx-auto max-w-xl">
         <div className="flex gap-3">
           <button
+            ref={spinBtnRef}
             onClick={spin}
             disabled={loading}
             className="flex-1 px-6 py-4 rounded-2xl bg-accent text-white text-lg font-semibold shadow-lg shadow-accent/30 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60"
@@ -328,7 +353,7 @@ export function SpinPage() {
         />
       )}
 
-      <div ref={resultRef} className="scroll-mt-20">
+      <div ref={resultRef}>
         {loading && (
           <SpinLoader
             message={
@@ -346,7 +371,7 @@ export function SpinPage() {
         {!loading && result && (
           <>
             {/* Right above the result, so another go is the obvious next step. */}
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div ref={rerollTopRef} className="mb-3 flex items-center justify-between gap-3">
               <p className="min-w-0 text-sm text-muted">
                 {source === "watchlist" ? (
                   <>
@@ -371,7 +396,10 @@ export function SpinPage() {
               fetchStatus={restored}
               onSeen={reroll}
             />
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted">
+            <div
+              ref={rerollBottomRef}
+              className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted"
+            >
               <span>Not feeling it?</span>
               <button onClick={reroll} className={actionBtn}>
                 ↻ {rerollLabel}
@@ -385,6 +413,21 @@ export function SpinPage() {
           </>
         )}
       </div>
+
+      {/* Reading down the result (or scrolled away from it): another go stays one
+          thumb-tap away, just above the tab bar on phones. */}
+      {hasResult && (
+        <button
+          onClick={reroll}
+          tabIndex={floatReroll ? 0 : -1}
+          aria-hidden={!floatReroll}
+          className={`fixed bottom-[calc(var(--tabbar-h)+1rem)] left-1/2 z-30 -translate-x-1/2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-black/40 transition-all duration-200 hover:brightness-110 active:scale-95 sm:bottom-6 ${
+            floatReroll ? "visible translate-y-0 opacity-100" : "invisible translate-y-3 opacity-0"
+          }`}
+        >
+          ↻ {rerollLabel}
+        </button>
+      )}
     </div>
   );
 }

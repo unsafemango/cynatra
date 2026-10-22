@@ -237,7 +237,7 @@ export function Select<T extends string>({
                 aria-controls={listId}
                 aria-activedescendant={shown.length ? optionId(active) : undefined}
                 autoComplete="off"
-                className="w-full rounded-lg bg-background/60 px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-lg bg-background/60 px-3 py-2 text-base sm:text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
             </div>
           )}
