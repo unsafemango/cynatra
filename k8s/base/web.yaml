@@ -38,6 +38,8 @@ spec:
             # Server-rendered pages (titles, people, the sitemap) call the gateway
             # inside the cluster rather than going out and back in through the domain.
             - { name: SERVER_API_URL, value: "http://gateway:4000" }
+            # JavaScript heap for the 1Gi limit, leaving room for the rest of Node.
+            - { name: NODE_OPTIONS, value: "--max-old-space-size=640" }
           readinessProbe:
             httpGet: { path: /, port: 3000 }
             periodSeconds: 10
@@ -47,8 +49,10 @@ spec:
             - { name: next-cache, mountPath: /app/.next/cache }
             - { name: tmp, mountPath: /tmp }
           resources:
-            requests: { cpu: 50m, memory: 128Mi }
-            limits: { memory: 512Mi }
+            requests: { cpu: 50m, memory: 256Mi }
+            # Node's heap defaulted to about half the limit (~250 MB) and ran out
+            # under crawler traffic; NODE_OPTIONS below sets it to fit this limit.
+            limits: { memory: 1Gi }
       volumes:
         - name: next-cache
           emptyDir: { sizeLimit: 512Mi }
