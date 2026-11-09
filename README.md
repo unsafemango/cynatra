@@ -180,10 +180,6 @@ The services can also run on managed platforms:
 - **Web:** Vercel, with `NEXT_PUBLIC_API_URL` set to the gateway URL.
 - **Picker and gateway:** any platform that runs Dockerfiles, such as Render, Koyeb, Railway or Fly.io. Set `CORS_ORIGIN` on the gateway to the web URL and use a strong, unique `JWT_SECRET`.
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the branching, pull request and release process.
-
 ## Attribution
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
