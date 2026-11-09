@@ -1,6 +1,8 @@
 # Cynatra
 
-Stop scrolling, start watching. Set a few filters, hit **Spin**, get one pick.
+Cynatra is a movie and series recommendation app. Users set a few filters and receive a single title to watch, along with its trailer and streaming availability.
+
+## Architecture
 
 ```
 web (Next.js)  ──►  gateway (Node/TS)  ──►  picker (Go)  ──►  TMDB
@@ -9,126 +11,179 @@ web (Next.js)  ──►  gateway (Node/TS)  ──►  picker (Go)  ──►  
                   PostgreSQL                 Redis (TMDB cache)
 ```
 
-| Folder     | What it does |
-|------------|--------------|
-| `picker/`  | Go service. Turns filters (type, genres, min rating, year, runtime, language) into TMDB discover queries, picks a random page and a random title, skips excluded IDs, and returns details with trailer and where-to-watch. Caches TMDB responses in Redis, or in memory if Redis isn't available. |
-| `gateway/` | Node + TypeScript (Express). The only API the frontend talks to. Handles sign-up/login (bcrypt + JWT), watchlist, pick history and "seen" marks in Postgres, and forwards picks to the Go service with the user's seen titles excluded. Runs without a database too (anonymous spins only). |
-| `web/`     | Next.js + Tailwind. Spin screen with filters and vibe presets, result card with trailer, reroll, watchlist, "seen it" and share links (`/t/movie-155`), plus library and profile pages. |
+| Directory  | Description |
+|------------|-------------|
+| `picker/`  | Go service. Converts filters (type, genres, minimum rating, year, runtime, language) into TMDB discover queries, selects a random title, skips excluded IDs, and returns details with the trailer and streaming availability. Caches TMDB responses in Redis, or in memory if Redis is unavailable. |
+| `gateway/` | Node and TypeScript (Express) service. The only API the frontend calls. Handles sign-up and login (bcrypt and JWT), stores the watchlist, pick history and seen titles in PostgreSQL, and forwards pick requests to the picker with the user's seen titles excluded. Without a database, it serves anonymous picks only. |
+| `web/`     | Next.js and Tailwind frontend. Includes the pick screen with filters and presets, discovery pages, title and person pages, library and profile pages, and shareable title links (`/t/movie-155`). |
+| `k8s/`     | Kubernetes manifests: a shared base with staging and production overlays. |
 
-## Run it locally
+## Getting started
 
-You need a free TMDB key: <https://www.themoviedb.org/settings/api> (the v3 API key or the v4 read access token both work).
+### Prerequisites
 
-### Option A: everything in Docker
+- A TMDB API key from <https://www.themoviedb.org/settings/api> (the v3 API key or the v4 read access token)
+- Docker with Docker Compose, or Node.js 22 and Go 1.26 to run without Docker
+
+### Run with Docker
 
 ```bash
-cp .env.example .env          # add TMDB_API_KEY
-docker compose up --build     # web :3000, gateway :4000, picker :8081, postgres, redis, mailpit :8025
+cp .env.example .env          # set TMDB_API_KEY
+docker compose up --build
 ```
 
-Open http://localhost:3000. The web image is a Next.js standalone build (non-root, with a health check).
+| Service | Address |
+|---------|---------|
+| Web | <http://localhost:3000> |
+| Gateway | <http://localhost:4000> |
+| Picker | <http://localhost:8081> |
+| Mailpit (local email inbox) | <http://localhost:8025> |
 
-`NEXT_PUBLIC_API_URL` is baked into the browser bundle when the web image is **built**, so it must be the gateway URL as the browser sees it. It defaults to `http://localhost:4000`; for another host set `PUBLIC_API_URL` in `.env` and rebuild (`docker compose build web`). If the site isn't on `http://localhost:3000`, also set `CORS_ORIGIN` to its URL and add it to your Google client's Authorized JavaScript origins. `WEB_PORT` changes the host port.
+PostgreSQL and Redis also start as part of the stack.
 
-### Option A2: Docker backend, local frontend (hot reload)
+The following settings apply when the site is not served from `http://localhost:3000`:
+
+- `PUBLIC_API_URL` is the gateway URL as the browser sees it. It defaults to `http://localhost:4000` and is built into the browser bundle, so rebuild after changing it (`docker compose build web`).
+- `CORS_ORIGIN` must be set to the site's URL. Also add that URL to the Google client's authorized JavaScript origins if Google sign-in is enabled.
+- `WEB_PORT` changes the host port for the web container.
+
+### Run the frontend locally with hot reload
+
+This option runs the backend in Docker and the frontend on the host. Both frontends use port 3000, so stop the web container first if it is running (`docker compose stop web`).
 
 ```bash
-docker compose up -d gateway  # starts gateway and everything it needs, not the web container
-cd web && npm install && npm run dev   # http://localhost:3000
-```
-
-Stop the `web` container first (`docker compose stop web`) if it's running, since both use port 3000.
-
-### Option B: no Docker
-
-```bash
-# 1. picker (in-memory cache if REDIS_URL is unset)
-cd picker && TMDB_API_KEY=xxx go run ./cmd/picker
-
-# 2. gateway (leave DATABASE_URL empty to skip accounts)
-cd gateway && npm install && cp .env.example .env && npm run dev
-
-# 3. web
+docker compose up -d gateway  # starts the gateway and its dependencies
 cd web && npm install && npm run dev
 ```
 
-## Email verification
+### Run without Docker
 
-Email sign-ups are confirmed with a 6-digit code before the account is created. Codes expire after 10 minutes, allow 5 tries, and can be resent once a minute.
+Start each service in its own terminal:
 
-- **Local (Docker):** emails go to Mailpit; open **http://localhost:8025** to read them. Nothing is delivered for real.
-- **Gateway without Docker:** leave `SMTP_URL` empty and the code is printed in the gateway's terminal.
-- **Real email (Brevo):** in Brevo, verify a sender address, then under *Settings → SMTP & API → SMTP* generate an SMTP key. In `.env` set `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_USER` (the SMTP login), `SMTP_PASS` (the SMTP key) and `EMAIL_FROM="Cynatra <your-verified-sender>"`, then `docker compose up -d gateway`. The gateway logs `email: ready via smtp-relay.brevo.com:587` when the credentials work. Any other SMTP provider works the same way.
+```bash
+# Picker: uses an in-memory cache if REDIS_URL is unset
+cd picker && TMDB_API_KEY=<your-key> go run ./cmd/picker
+```
 
-## Sign in with Google (optional)
+```bash
+# Gateway: leave DATABASE_URL empty to run without accounts
+cd gateway && npm install && cp .env.example .env && npm run dev
+```
 
-1. In [Google Cloud Console](https://console.cloud.google.com), create a project, then set up the OAuth consent screen (External).
-2. **Credentials → Create credentials → OAuth client ID → Web application.** Under *Authorized JavaScript origins* add `http://localhost:3000` (and your real domain when you deploy). No redirect URIs are needed.
-3. Put the client ID in `.env` as `GOOGLE_CLIENT_ID=…` (root `.env` for Docker, `gateway/.env` when running the gateway directly) and restart the gateway: `docker compose up -d gateway`.
+```bash
+# Web
+cd web && npm install && npm run dev
+```
 
-The "Continue with Google" button appears on the login page once the gateway has a client ID. The gateway verifies Google's ID token, then signs the user in with a normal Cynatra session.
+## Configuration
 
-## API (gateway, port 4000)
+### Email verification
 
-| Method | Path | Auth | Notes |
-|--------|------|------|-------|
-| POST | `/api/pick` | optional | Body: `{type, genres[], minRating, yearFrom?, yearTo?, maxRuntime?, language?, region?, excludeIds[], excludeSeen?}`. Logged-in picks skip seen and in-progress titles and are saved to history. |
-| GET | `/api/genres` | – | Genre slugs and labels |
-| GET | `/api/title/:media/:id` | – | One title (for share links) |
-| GET | `/api/search?q=` | – | Movies and series matching a name (up to 8), for the Shortlist |
-| POST | `/api/auth/register` | – | `{email, password}`: emails a 6-digit code; no account yet (202) |
-| POST | `/api/auth/register/verify` | – | `{email, code}` → `{token, user}`: creates the account and signs in |
-| POST | `/api/auth/register/resend` | – | `{email}`: new code (once a minute) |
-| POST | `/api/auth/login` | – | `{email, password}` → `{token, user}` |
-| POST | `/api/auth/google` | – | `{credential}` (Google ID token) → `{token, user}`. Creates the account, or links Google to an existing one with the same verified email. |
-| GET | `/api/auth/config` | – | `{accounts, googleClientId}`: which sign-in options to show |
-| GET/PATCH | `/api/auth/me` | ✓ | PATCH `{region}` sets the where-to-watch country |
-| GET | `/api/me/counts` | ✓ | `{watchlist, watching, seen, history}` item counts |
-| GET/POST | `/api/me/watchlist` | ✓ | POST a title object |
-| DELETE | `/api/me/watchlist/:titleId` | ✓ | |
-| POST | `/api/me/watchlist/pick` | ✓ | Random unseen title from the watchlist. Body: `{excludeIds[]}`. 404 with `code: "empty"` or `"exhausted"`. |
-| GET/POST | `/api/me/watching` | ✓ | POST a title object; also removes it from the watchlist |
-| DELETE | `/api/me/watching/:titleId` | ✓ | |
-| GET/DELETE | `/api/me/history` | ✓ | |
-| GET | `/api/me/seen` | ✓ | Titles marked as seen, newest first |
-| PUT/DELETE | `/api/me/seen/:titleId` | ✓ | PUT body: the title object (optional, shown on the Seen tab). PUT also removes it from Watching. |
+Email sign-ups are confirmed with a 6-digit code before the account is created. Codes expire after 10 minutes, allow 5 attempts, and can be resent once a minute.
 
-List endpoints (`GET /api/me/watchlist`, `/watching`, `/seen`, `/history`) are paginated: `?page=1&pageSize=10` (max 50), returning `{items, total, page, pageSize}`.
+- **Docker:** messages go to the Mailpit inbox at <http://localhost:8025> and are not delivered externally.
+- **Without Docker:** if `SMTP_URL` is empty, the gateway prints the code to its terminal.
+- **SMTP delivery:** set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `EMAIL_FROM` in `.env`, using a sender address verified with the provider, then run `docker compose up -d gateway`. For example, Brevo uses `SMTP_HOST=smtp-relay.brevo.com` and `SMTP_PORT=587`, with credentials from *Settings → SMTP & API → SMTP*. When the connection succeeds, the gateway logs `email: ready via <host>:<port>`.
 
-Title IDs look like `movie:155` or `tv:1399`.
+### Google sign-in (optional)
 
-## How a pick works
+1. In the [Google Cloud Console](https://console.cloud.google.com), create a project and configure the OAuth consent screen (External).
+2. Under **Credentials → Create credentials → OAuth client ID → Web application**, add `http://localhost:3000` and any deployed domains to *Authorized JavaScript origins*. Redirect URIs are not required.
+3. Set `GOOGLE_CLIENT_ID` in the root `.env` for Docker, or in `gateway/.env` when running the gateway directly, and restart the gateway.
 
-1. `type` resolves to one or more (kind, media) attempts. "Surprise me" shuffles movie, series, animated movie and animated series, and tries each until one matches.
-2. Genres are ORed (`comedy|horror`). Movie and series are built with `without_genres=animation`; animation always requires the animation genre. TMDB has no TV genre for horror, romance, thriller, history or music, so those return nothing for series.
-3. A vote-count floor (150 for movies, 80 for TV) keeps obscure 10/10s out.
-4. The picker reads page 1 for the total, then samples random pages (capped at 100) until it finds an ID that isn't excluded.
-5. **Bright & colourful look** (`look: "colorful"`): each candidate's backdrop and poster are scored for colourfulness (Hasler & Süsstrunk), brightness and hue variety, and only vivid ones are kept. Scores are cached for 30 days. Crime, thriller, horror and war are left out unless chosen as genres, because a vivid poster doesn't make a dark film light. Thresholds were calibrated on 12 vivid vs 12 dark titles (10/12 vs 0/12 pass).
+The login page shows the Google button once the gateway has a client ID. The gateway verifies Google's ID token and then issues a standard Cynatra session.
 
-## Tests
+## API
+
+The gateway listens on port 4000. Title IDs use the format `movie:155` or `tv:1399`.
+
+### Titles and picks
+
+Authentication is optional for `POST /api/pick` and is not used by the other endpoints in this table.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/pick` | Returns one random title. Body: `{type, genres[], minRating, yearFrom?, yearTo?, maxRuntime?, language?, region?, excludeIds[], excludeSeen?}`. Picks for signed-in users skip seen and in-progress titles and are saved to history. |
+| POST | `/api/browse` | Most popular titles matching the pick filters |
+| GET | `/api/genres` | Genre slugs and labels |
+| GET | `/api/providers?region=` | Streaming services available in a country |
+| GET | `/api/search?q=` | Movies and series matching a name (up to 8) |
+| GET | `/api/popular?media=&pages=` | IDs of well-known movies, series or people, used for the sitemap |
+| GET | `/api/title/:media/:id` | A single title |
+| GET | `/api/title/:media/:id/full` | A single title with cast, crew and seasons |
+| GET | `/api/person/:id` | An actor or crew member with their filmography |
+| GET | `/api/episodes?credits=` | Episodes or seasons covered by up to 5 TMDB credit IDs |
+
+### Authentication
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/auth/register` | None | `{email, password}`. Emails a 6-digit code and returns 202. The account is not created yet. |
+| POST | `/api/auth/register/verify` | None | `{email, code}` → `{token, user}`. Creates the account and signs in. |
+| POST | `/api/auth/register/resend` | None | `{email}`. Sends a new code, at most once a minute. |
+| POST | `/api/auth/login` | None | `{email, password}` → `{token, user}` |
+| POST | `/api/auth/google` | None | `{credential}` (Google ID token) → `{token, user}`. Creates an account, or links Google to an existing account with the same verified email. |
+| GET | `/api/auth/config` | None | `{accounts, googleClientId}`: the available sign-in options |
+| GET, PATCH | `/api/auth/me` | Required | The current user. `PATCH {region}` sets the country used for streaming availability. |
+
+### User library
+
+All `/api/me` endpoints require authentication.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/me/counts` | Item counts: `{watchlist, watching, seen, history}` |
+| GET | `/api/me/status/:titleId` | Where a title is in the library: `seen`, `watching`, `watchlist` or `null` |
+| GET, POST | `/api/me/watchlist` | List the watchlist, or add a title object |
+| DELETE | `/api/me/watchlist/:titleId` | Remove a title from the watchlist |
+| POST | `/api/me/watchlist/pick` | Random unseen title from the watchlist. Body: `{excludeIds[]}`. Returns 404 with `code: "empty"` or `"exhausted"` when none is available. |
+| GET, POST | `/api/me/watching` | List in-progress titles, or add a title object (this also removes it from the watchlist) |
+| DELETE | `/api/me/watching/:titleId` | Remove a title from Watching |
+| GET, DELETE | `/api/me/history` | List or clear pick history |
+| GET | `/api/me/seen` | Titles marked as seen, newest first |
+| PUT, DELETE | `/api/me/seen/:titleId` | Mark or unmark a title as seen. The optional PUT body is the title object. PUT also removes the title from Watching. |
+| POST | `/api/me/seen/import` | `{ids[]}`. Copies seen marks made while signed out to the account. |
+| GET, PUT | `/api/me/services` | Streaming services for the user's Watchlist and Watching titles, or update the user's subscriptions |
+| GET | `/api/me/services/subscribed` | Services the user subscribes to |
+| GET | `/api/me/services/library` | Services that carry titles in the library, with a count for each tab |
+
+`GET /api/me/watchlist`, `/watching`, `/seen` and `/history` are paginated with `?page=1&pageSize=10` (maximum 50) and return `{items, total, page, pageSize}`.
+
+### Support
+
+`POST /api/support` submits the Help page's contact form. Authentication is optional; replies to signed-in users go to the account's email address.
+
+## Pick algorithm
+
+1. `type` resolves to one or more combinations of kind and media. "Surprise me" shuffles movies, series, animated movies and animated series, then tries each until one returns a match.
+2. Genres are combined with OR (`comedy|horror`). Movie and series queries exclude animation, and animation queries always require it. TMDB has no TV genre for horror, romance, thriller, history or music, so those genres return no series.
+3. A minimum vote count (150 for movies, 80 for TV) excludes highly rated titles with too few votes to be meaningful.
+4. The picker reads page 1 to get the total, then samples random pages (up to page 100) until it finds an ID that is not excluded.
+5. The optional colorful filter (`look: "colorful"`) scores each candidate's backdrop and poster for colorfulness (Hasler and Süsstrunk), brightness and hue variety, and keeps only vivid titles. Scores are cached for 30 days. Crime, thriller, horror and war titles are excluded unless selected as genres.
+
+## Testing
 
 ```bash
 cd picker && go test ./...
-cd gateway && npm run typecheck
+cd gateway && npm run typecheck && npm test
 cd web && npm run lint && npm run build
 ```
 
-## Deploying
+The gateway tests read `gateway/.env` and require a running PostgreSQL database.
 
-**Free, on Kubernetes:** see [DEPLOY.md](DEPLOY.md). It covers the whole stack on an Oracle Cloud Always Free server with k3s, HTTPS and your own domain.
+## Deployment
 
-Without Kubernetes:
+[DEPLOY.md](DEPLOY.md) describes deploying the full stack to Kubernetes (k3s) with HTTPS on a custom domain.
 
-- **web** → Vercel. Set `NEXT_PUBLIC_API_URL` to the gateway URL.
-- **picker**, **gateway** → Render, Koyeb, Railway or Fly.io using their Dockerfiles. Set `CORS_ORIGIN` on the gateway to your web URL and use a real `JWT_SECRET`.
+The services can also run on managed platforms:
 
-## Next up
+- **Web:** Vercel, with `NEXT_PUBLIC_API_URL` set to the gateway URL.
+- **Picker and gateway:** any platform that runs Dockerfiles, such as Render, Koyeb, Railway or Fly.io. Set `CORS_ORIGIN` on the gateway to the web URL and use a strong, unique `JWT_SECRET`.
 
-- Group mode: a room where friends vote or spin together
-- Daily pick
-- React Native app reusing `lib/api.ts`
-- gRPC between gateway and picker if REST becomes a bottleneck
+## Contributing
 
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the branching, pull request and release process.
+
+## Attribution
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
