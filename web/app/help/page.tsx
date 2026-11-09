@@ -87,7 +87,7 @@ export default function HelpPage() {
       <section
         id="contact"
         aria-labelledby="contact-title"
-        className="scroll-mt-20 rounded-3xl border border-border bg-surface p-6 sm:p-8"
+        className="rounded-3xl border border-border bg-surface p-6 sm:p-8"
       >
         <h2 id="contact-title" className="text-lg font-semibold tracking-tight">
           Contact support

@@ -16,7 +16,7 @@ function track(path: string) {
   else stack.push(path);
 }
 
-const NAV_PAGES = ["/", "/search", "/library", "/shortlist", "/login", "/register"];
+const NAV_PAGES = ["/", "/discover", "/search", "/library", "/shortlist", "/login", "/register"];
 
 /** Back link shown above pages you drill into (titles, people, profile…), not nav-bar pages. */
 export function BackButton() {

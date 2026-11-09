@@ -50,7 +50,7 @@ export function Filmography({ credits }: { credits: Credit[] }) {
     <section
       ref={section}
       aria-labelledby="filmography"
-      className="scroll-mt-20 rounded-2xl border border-border bg-surface p-5"
+      className="rounded-2xl border border-border bg-surface p-5"
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 id="filmography" className="text-lg font-semibold">

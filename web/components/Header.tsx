@@ -8,19 +8,18 @@ import { loginHref } from "@/lib/after-login";
 import { useShortlist } from "@/lib/shortlist";
 import { SearchIcon } from "./icons";
 import { ThemeToggle } from "./ThemeControls";
-import { Logo, LogoMark } from "./Logo";
+import { Logo } from "./Logo";
 
 export function Header() {
   return (
     // Padded for the notch when installed on an iPhone (the status bar sits over the page).
-    <header className="border-b border-border/60 bg-background/70 backdrop-blur sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
+    // Phones: solid. Installed on an iPhone, Safari drew the logo and links of a
+    // sticky, see-through (backdrop-blur) header out of focus.
+    <header className="border-b border-border/60 bg-background sm:bg-background/85 sm:backdrop-blur-lg sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <Link href="/" aria-label="Cynatra home" className="whitespace-nowrap shrink-0 rounded-md">
-          {/* Phones: just the mark, so Spin · Library · Shortlist · account all fit. */}
-          <LogoMark size={30} className="sm:hidden" />
-          <span className="hidden sm:inline-flex">
-            <Logo size={26} />
-          </span>
+          {/* Phones have the main pages in the tab bar at the bottom, so there's room for the name. */}
+          <Logo size={26} />
         </Link>
         {/* The nav reads the current path (request-time on dynamic routes). */}
         <Suspense fallback={<NavPlaceholder />}>
@@ -39,7 +38,7 @@ function Nav() {
   if (!ready) return <NavPlaceholder />;
 
   const shortlist = (
-    <NavLink href="/shortlist" current={pathname === "/shortlist"}>
+    <NavLink href="/shortlist" current={pathname === "/shortlist"} wide>
       Shortlist
       {loaded && items.length > 0 && (
         <span
@@ -54,19 +53,21 @@ function Nav() {
 
   return (
     <nav aria-label="Main" className="flex items-center gap-1 text-sm whitespace-nowrap">
-      {/* Laptops: one-click light/dark. Phones have it in the footer (no room here). */}
-      <ThemeToggle className="hidden sm:grid" />
-      <NavLink href="/search" current={pathname === "/search"} label="Search">
+      <ThemeToggle />
+      {/* Phones: Search, Spin, Discover, Shortlist and Library are in the tab bar (TabBar). */}
+      <NavLink href="/search" current={pathname === "/search"} wide>
         <SearchIcon width={16} height={16} />
-        {/* Phones: icon only, so the rest of the nav still fits. */}
-        <span className="hidden sm:inline ml-1.5">Search</span>
+        <span className="ml-1.5">Search</span>
       </NavLink>
-      <NavLink href="/" current={pathname === "/"}>
+      <NavLink href="/" current={pathname === "/"} wide>
         Spin
+      </NavLink>
+      <NavLink href="/discover" current={pathname === "/discover"} wide>
+        Discover
       </NavLink>
       {user ? (
         <>
-          <NavLink href="/library" current={pathname.startsWith("/library")}>
+          <NavLink href="/library" current={pathname.startsWith("/library")} wide>
             Library
           </NavLink>
           {shortlist}
@@ -75,12 +76,9 @@ function Nav() {
       ) : (
         <>
           {shortlist}
-          {/* Phones: no room; the Sign up page has a Log in tab. */}
-          <span className="hidden sm:contents">
-            <NavLink href={loginHref(pathname)} current={pathname === "/login"}>
-              Log in
-            </NavLink>
-          </span>
+          <NavLink href={loginHref(pathname)} current={pathname === "/login"}>
+            Log in
+          </NavLink>
           <Link
             href={loginHref(pathname, "register")}
             className="ml-1 px-3 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110"
@@ -96,21 +94,20 @@ function Nav() {
 function NavLink({
   href,
   current,
-  label,
+  wide,
   children,
 }: {
   href: string;
   current: boolean;
-  /** Accessible name, when the visible text can be hidden. */
-  label?: string;
+  /** Only on wider screens: phones have it in the tab bar. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
-      aria-label={label}
       aria-current={current ? "page" : undefined}
-      className={`inline-flex items-center px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
+      className={`${wide ? "hidden sm:inline-flex" : "inline-flex"} items-center px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
         current ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground hover:bg-surface/80"
       }`}
     >

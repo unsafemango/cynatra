@@ -6,8 +6,7 @@ const dev = process.env.NODE_ENV !== "production";
 const apiOrigin = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).origin : "";
 
 // What pages may load, beyond Cynatra itself: Google's sign-in button and
-// YouTube trailers. Images (TMDB posters, logos) come through Next's own
-// /_next/image. Inline scripts are allowed because Next.js and the theme
+// YouTube trailers, and images straight from TMDB. Inline scripts are allowed because Next.js and the theme
 // script use them; external scripts are not.
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -62,8 +61,11 @@ const nextConfig: NextConfig = {
   htmlLimitedBots:
     /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
   partialPrefetching: true,
+  // Images load straight from TMDB at the right width (lib/tmdb-image-loader.ts),
+  // not resized and cached on our server.
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "image.tmdb.org", pathname: "/t/p/**" }],
+    loader: "custom",
+    loaderFile: "./lib/tmdb-image-loader.ts",
   },
   turbopack: {
     rules: {

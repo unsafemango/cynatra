@@ -12,7 +12,7 @@ name: Images
 on:
   push:
     branches: [main]
-    paths: ["web/**", "gateway/**", "picker/**", "k8s/**", ".github/workflows/images.yml"]
+    paths: ["web/**", "gateway/**", "picker/**", "k8s/**", ".github/workflows/images.yml", ".github/scripts/**"]
   workflow_dispatch:
 
 permissions:
@@ -150,5 +150,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v$(date -u +%Y.%m.%d)-$GITHUB_RUN_NUMBER"
+          # The repo was recreated on 2026-11-05 and its run numbers restarted;
+          # the old one reached 31, so add that to keep release numbers going up.
+          tag="v$(date -u +%Y.%m.%d)-$((GITHUB_RUN_NUMBER + 31))"
           gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes

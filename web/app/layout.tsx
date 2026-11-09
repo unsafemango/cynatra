@@ -6,6 +6,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { TabBar } from "@/components/TabBar";
 import { AuthProvider } from "@/lib/auth";
 import { ShortlistProvider } from "@/lib/shortlist";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -38,8 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image" },
   // Installed on an iPhone home screen: full-screen, named Cynatra, with the
-  // status bar over the page (the header leaves room for it).
-  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
+  // page starting below the status bar. Drawing under it ("black-translucent")
+  // let iOS blur the top of the page, header included, like frosted glass.
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
@@ -64,7 +66,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Applies a saved light/dark choice before the first paint, so it never flashes. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col">
+      {/* Phones: room at the bottom for the tab bar. */}
+      <body className="min-h-full flex flex-col pb-(--tabbar-h)">
         <AuthProvider>
           <ShortlistProvider>
             <Header />
@@ -78,6 +81,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </main>
             <Footer />
             <ScrollToTop />
+            {/* Reads the pathname, which is request-time data on dynamic routes. */}
+            <Suspense fallback={null}>
+              <TabBar />
+            </Suspense>
             <ServiceWorker />
           </ShortlistProvider>
         </AuthProvider>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ClearButton } from "@/components/ClearButton";
 import { PosterTile } from "@/components/PosterTile";
 import { SearchIcon, Spinner } from "@/components/icons";
 import { api, type SearchHit } from "@/lib/api";
@@ -15,6 +16,13 @@ export function SearchView() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const q = query.trim();
+  const input = useRef<HTMLInputElement>(null);
+  const clear = () => {
+    setQuery("");
+    setResults(null);
+    setError(null);
+    input.current?.focus();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -43,18 +51,33 @@ export function SearchView() {
           Movie or series name
         </label>
         <div className="relative">
-          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          {/* The magnifier turns into a spinner while searching. */}
+          {searching ? (
+            <Spinner className="animate-spin pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          ) : (
+            <SearchIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          )}
           <input
+            ref={input}
             id="title-search"
             type="search"
+            enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && query) {
+                e.preventDefault();
+                clear();
+              }
+              // Phones: Search on the keyboard puts it away, to show the results.
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
             placeholder="e.g. Paddington, The Bear, Spirited Away"
             autoComplete="off"
             autoFocus
             className="w-full rounded-2xl border border-border bg-surface py-3.5 pl-11 pr-11 placeholder:text-muted/60 hover:border-muted/70 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
           />
-          {searching && <Spinner className="animate-spin absolute right-4 top-1/2 -translate-y-1/2 text-muted" />}
+          {query && <ClearButton onClear={clear} />}
         </div>
         {error && <p className="mt-2 text-sm text-accent">{error}</p>}
       </section>
