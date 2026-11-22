@@ -4,7 +4,7 @@ import { requireAuth, requireDb } from "../auth.js";
 import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
-import { REACTIONS, setReaction } from "../reactions.js";
+import { getReaction, REACTIONS, setReaction } from "../reactions.js";
 import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
@@ -110,13 +110,18 @@ libraryRouter.put("/services", async (req, res) => {
   res.json({ subscribed: unique });
 });
 
-// Where one title is in the user's library: "seen", "watching", "watchlist" or null.
+// Where one title is in the user's library: "seen", "watching", "watchlist" or null,
+// plus their like/dislike if they gave one.
 libraryRouter.get("/status/:titleId", async (req, res) => {
   if (!titleId.safeParse(req.params.titleId).success) {
     res.status(400).json({ error: "Invalid title id" });
     return;
   }
-  res.json({ status: (await libraryStatus(req.user!.id, req.params.titleId)) ?? null });
+  const [status, reaction] = await Promise.all([
+    libraryStatus(req.user!.id, req.params.titleId),
+    getReaction(pool!, req.user!.id, req.params.titleId),
+  ]);
+  res.json({ status: status ?? null, reaction });
 });
 
 // ---- Streaming-service filter for the Library tabs ----
@@ -225,7 +230,7 @@ libraryRouter.get("/watchlist", async (req, res) => {
     req,
     res,
     "SELECT count(*)::int AS n FROM watchlist WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))",
-    `SELECT w.title, w.added_at AS "addedAt", (s.title_id IS NOT NULL) AS seen
+    `SELECT w.title, w.added_at AS "addedAt", (s.title_id IS NOT NULL) AS seen, s.reaction
        FROM watchlist w
        LEFT JOIN seen s ON s.user_id = w.user_id AND s.title_id = w.title_id
       WHERE w.user_id = $1 AND ($2::text[] IS NULL OR w.title_id = ANY($2))
@@ -354,7 +359,7 @@ libraryRouter.get("/history", async (req, res) => {
     req,
     res,
     "SELECT count(*)::int AS n FROM history WHERE user_id = $1 AND ($2::text[] IS NULL OR title_id = ANY($2))",
-    `SELECT h.id, h.title, h.picked_at AS "pickedAt", (s.title_id IS NOT NULL) AS seen
+    `SELECT h.id, h.title, h.picked_at AS "pickedAt", (s.title_id IS NOT NULL) AS seen, s.reaction
        FROM history h
        LEFT JOIN seen s ON s.user_id = h.user_id AND s.title_id = h.title_id
       WHERE h.user_id = $1 AND ($2::text[] IS NULL OR h.title_id = ANY($2))
@@ -409,7 +414,7 @@ libraryRouter.get("/seen", async (req, res) => {
     req,
     res,
     "SELECT count(*)::int AS n FROM seen WHERE user_id = $1 AND title IS NOT NULL AND ($2::text[] IS NULL OR title_id = ANY($2))",
-    `SELECT s.title, s.seen_at AS "seenAt", true AS seen
+    `SELECT s.title, s.seen_at AS "seenAt", true AS seen, s.reaction
        FROM seen s
       WHERE s.user_id = $1 AND s.title IS NOT NULL AND ($2::text[] IS NULL OR s.title_id = ANY($2))
       ORDER BY s.seen_at DESC, s.title_id
