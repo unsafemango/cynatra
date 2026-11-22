@@ -4,6 +4,7 @@ import { requireAuth, requireDb } from "../auth.js";
 import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
+import { REACTIONS, setReaction } from "../reactions.js";
 import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
@@ -433,6 +434,29 @@ libraryRouter.put("/seen/:titleId", async (req, res) => {
   // Seen means finished, so it's no longer in progress.
   await pool!.query("DELETE FROM watching WHERE user_id = $1 AND title_id = $2", [req.user!.id, req.params.titleId]);
   res.json({ ok: true });
+});
+
+// Thumbs up or down on a seen title. DELETE clears it.
+libraryRouter.put("/seen/:titleId/reaction", async (req, res) => {
+  const body = z.object({ reaction: z.enum(REACTIONS) }).safeParse(req.body);
+  if (!titleId.safeParse(req.params.titleId).success || !body.success) {
+    res.status(400).json({ error: "Invalid title id or reaction" });
+    return;
+  }
+  if (!(await setReaction(pool!, req.user!.id, req.params.titleId, body.data.reaction))) {
+    res.status(404).json({ error: "Mark the title as seen before rating it" });
+    return;
+  }
+  res.json({ reaction: body.data.reaction });
+});
+
+libraryRouter.delete("/seen/:titleId/reaction", async (req, res) => {
+  if (!titleId.safeParse(req.params.titleId).success) {
+    res.status(400).json({ error: "Invalid title id" });
+    return;
+  }
+  await setReaction(pool!, req.user!.id, req.params.titleId, null);
+  res.json({ reaction: null });
 });
 
 // "Seen it" marks made while logged out (kept in the browser), copied to the
