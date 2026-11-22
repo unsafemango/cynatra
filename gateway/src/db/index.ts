@@ -61,6 +61,15 @@ CREATE TABLE IF NOT EXISTS seen (
 ALTER TABLE seen ADD COLUMN IF NOT EXISTS title jsonb;
 CREATE INDEX IF NOT EXISTS seen_user_seen_at ON seen (user_id, seen_at DESC);
 
+-- Thumbs up or down on a seen title; null means no opinion. Used to steer
+-- spins toward what the user liked.
+ALTER TABLE seen ADD COLUMN IF NOT EXISTS reaction text;
+ALTER TABLE seen ADD COLUMN IF NOT EXISTS reacted_at timestamptz;
+DO $$ BEGIN
+  ALTER TABLE seen ADD CONSTRAINT seen_reaction_check CHECK (reaction IN ('like', 'dislike'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 -- Started but not finished. Marking a title seen removes it from here.
 CREATE TABLE IF NOT EXISTS watching (
   user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
