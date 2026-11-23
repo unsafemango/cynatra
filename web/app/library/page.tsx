@@ -9,14 +9,16 @@ import { Pagination } from "@/components/Pagination";
 import { Select, type SelectOption } from "@/components/Select";
 import { WatchlistPickDialog } from "@/components/WatchlistPickDialog";
 import { useRatingText } from "@/components/Rating";
+import { ReactionButtons } from "@/components/ReactionButtons";
 import { StableLabel } from "@/components/StableLabel";
-import { api, formatRuntime, toSlug, type Title } from "@/lib/api";
+import { api, formatRuntime, toSlug, type Reaction, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
+import { markSeen, removeFromWatchlist, setReaction, startWatching, stopWatching } from "@/lib/library";
 
 type Item = {
   title: Title;
   seen: boolean;
+  reaction?: Reaction | null;
   addedAt?: string;
   pickedAt?: string;
   seenAt?: string;
@@ -208,9 +210,25 @@ export default function LibraryPage() {
     // On the Seen tab, unmarking removes the row.
     if (tab === "seen" && !seen) return dropRow(item);
     setData(
-      (cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, seen } : i)) },
+      (cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, seen, reaction: seen ? i.reaction : null } : i)),
+      },
     );
     setCountsTick((n) => n + 1); // the Seen tab's count changed
+  };
+
+  const react = async (item: Item, reaction: Reaction | null) => {
+    const before = item.reaction ?? null;
+    const patch = (r: Reaction | null) =>
+      setData(
+        (cur) => cur && { ...cur, items: cur.items.map((i) => (i.title.id === item.title.id ? { ...i, reaction: r } : i)) },
+      );
+    patch(reaction);
+    try {
+      await setReaction(item.title.id, reaction);
+    } catch {
+      patch(before);
+      setNotice("Couldn't save your reaction. Try again.");
+    }
   };
 
   const remove = async (item: Item) => {
@@ -395,6 +413,13 @@ export default function LibraryPage() {
                         >
                           <StableLabel current={item.seen ? "✓ Seen" : "Mark seen"} all={["Mark seen", "✓ Seen"]} />
                         </button>
+                        {item.seen && (
+                          <ReactionButtons
+                            reaction={item.reaction}
+                            onChange={(r) => react(item, r)}
+                            titleName={item.title.title}
+                          />
+                        )}
                         {(tab === "watchlist" || tab === "history") && (
                           <AddToShortlistButton title={item.title} className={`${btn} ${quietBtn}`} />
                         )}
