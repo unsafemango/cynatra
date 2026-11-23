@@ -322,6 +322,9 @@ export default function LibraryPage() {
           </p>
         )}
         {error && <p className="text-accent">{error}</p>}
+        {tab === "seen" && items && items.length > 0 && !items.some((i) => i.reaction) && (
+          <p className="mb-4 text-sm text-muted">Give a title a thumbs up or down so your spins can learn what you like.</p>
+        )}
         {showSkeleton && <ListSkeleton rows={Math.min(3, counts?.[tab] ?? 3)} />}
         {(items?.length === 0 || knownEmpty) && (
           <p className="text-muted text-center py-12">
