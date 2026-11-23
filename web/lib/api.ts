@@ -9,6 +9,9 @@ export type Provider = { name: string; logo: string };
 
 export type LibraryStatus = "watchlist" | "watching" | "seen";
 
+/** A thumbs up or down on a title they've seen. */
+export type Reaction = "like" | "dislike";
+
 export type Title = {
   id: string; // "movie:123" | "tv:456"
   tmdbId: number;

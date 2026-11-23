@@ -1,6 +1,6 @@
 "use client";
 
-import { api, type Title } from "./api";
+import { api, type Reaction, type Title } from "./api";
 
 // Anonymous users keep "seen" marks in this browser; logged-in users keep them
 // on the server so they follow the account.
@@ -42,6 +42,13 @@ export async function markSeen(id: string, loggedIn: boolean, seen = true, title
   }
   const ids = localSeen().filter((x) => x !== id);
   writeLocalSeen(seen ? [...ids, id] : ids);
+}
+
+/** Thumbs up or down on a seen title; null clears it. Only for logged-in users. */
+export async function setReaction(id: string, reaction: Reaction | null) {
+  const path = `/api/me/seen/${encodeURIComponent(id)}/reaction`;
+  if (reaction) await api(path, { method: "PUT", body: JSON.stringify({ reaction }) });
+  else await api(path, { method: "DELETE" });
 }
 
 export function addToWatchlist(t: Title) {

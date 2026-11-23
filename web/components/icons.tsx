@@ -129,3 +129,15 @@ export const CloseIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
   </Icon>
 );
+
+export const ThumbUpIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M7.5 10.5v9h-3v-9Zm0 0 3.2-6.2a1.6 1.6 0 0 1 3 .9l-.7 3.8h5.3a2 2 0 0 1 2 2.4l-1.1 5.6a2.5 2.5 0 0 1-2.5 2H7.5" />
+  </Icon>
+);
+
+export const ThumbDownIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M7.5 13.5v-9h-3v9Zm0 0 3.2 6.2a1.6 1.6 0 0 0 3-.9L13 15h5.3a2 2 0 0 0 2-2.4l-1.1-5.6a2.5 2.5 0 0 0-2.5-2H7.5" />
+  </Icon>
+);
