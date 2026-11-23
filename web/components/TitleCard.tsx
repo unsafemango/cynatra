@@ -4,12 +4,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AddToShortlistButton } from "@/components/AddToShortlistButton";
 import { ResultCard } from "@/components/ResultCard";
+import { ReactionButtons } from "@/components/ReactionButtons";
 import { StableLabel } from "@/components/StableLabel";
 import { useToast } from "@/components/Toast";
 import { loginHref, saveAfterLogin, takeSavedAfterLogin } from "@/lib/after-login";
-import { api, toSlug, type LibraryStatus, type Title } from "@/lib/api";
+import { api, toSlug, type LibraryStatus, type Reaction, type Title } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { addToWatchlist, localSeen, markSeen, removeFromWatchlist, startWatching, stopWatching } from "@/lib/library";
+import { addToWatchlist, localSeen, markSeen, removeFromWatchlist, setReaction as saveReaction, startWatching, stopWatching } from "@/lib/library";
 
 export const actionBtn =
   "px-4 py-2 rounded-lg bg-surface-2 border border-border text-sm hover:border-muted disabled:opacity-60";
@@ -46,6 +47,7 @@ export function TitleCard({
   const { user, ready } = useAuth();
   const [status, setStatus] = useState<LibraryStatus | undefined>(initialStatus);
   // A save in progress: further clicks wait, without greying the buttons out (no flicker).
+  const [reaction, setReaction] = useState<Reaction | null>(null);
   const busy = useRef(false);
   const [toast, notify] = useToast();
 
@@ -61,22 +63,27 @@ export function TitleCard({
     const who = user?.id ?? null;
     const changed = statusFor.current !== who;
     statusFor.current = who;
-    if (!fetchStatus && !changed) return;
+    if (!fetchStatus && !changed && initialStatus !== "seen") return;
     let live = true;
     if (user) {
       // Added to the watchlist just now, as asked before logging in.
       if (takeSavedAfterLogin(title.id)) notify("Added to your watchlist");
-      api<{ status: LibraryStatus | null }>(`/api/me/status/${encodeURIComponent(title.id)}`)
-        .then((r) => live && setStatus(r.status ?? undefined))
+      api<{ status: LibraryStatus | null; reaction?: Reaction | null }>(`/api/me/status/${encodeURIComponent(title.id)}`)
+        .then((r) => {
+          if (!live) return;
+          setStatus(r.status ?? undefined);
+          setReaction(r.reaction ?? null);
+        })
         .catch(() => {});
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus(localSeen().includes(title.id) ? "seen" : undefined);
+      setReaction(null);
     }
     return () => {
       live = false;
     };
-  }, [fetchStatus, ready, user, title.id, notify]);
+  }, [fetchStatus, initialStatus, ready, user, title.id, notify]);
 
   // Logged out: remember the title, log in, then it's added and they come back here.
   const watchlistAfterLogin = () => {
@@ -113,11 +120,28 @@ export function TitleCard({
 
   const toggleSeen = async () => {
     if (status === "seen") {
-      await run(() => markSeen(title.id, Boolean(user), false), undefined, "No longer marked as seen");
+      if (await run(() => markSeen(title.id, Boolean(user), false), undefined, "No longer marked as seen"))
+        setReaction(null); // the gateway drops the thumb with the mark
       return;
     }
     if (await run(() => markSeen(title.id, Boolean(user), true, title), "seen", onSeen ? undefined : "Marked as seen"))
       onSeen?.();
+  };
+
+  const react = async (next: Reaction | null) => {
+    const before = reaction;
+    if (busy.current) return;
+    setReaction(next);
+    busy.current = true;
+    try {
+      await saveReaction(title.id, next);
+      notify(next === "like" ? "Noted, you liked it" : next === "dislike" ? "Noted, you didn't like it" : "Reaction cleared");
+    } catch (e) {
+      setReaction(before);
+      notify(e instanceof Error ? e.message : "Couldn't save.");
+    } finally {
+      busy.current = false;
+    }
   };
 
   const share = async () => {
@@ -186,6 +210,9 @@ export function TitleCard({
           >
             <StableLabel current={status === "seen" ? "✓ Seen" : "Seen it"} all={SEEN_LABELS} />
           </button>
+          {user && status === "seen" && (
+            <ReactionButtons reaction={reaction} onChange={react} titleName={title.title} />
+          )}
           <button onClick={share} className={actionBtn}>
             Share
           </button>
