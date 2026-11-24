@@ -5,6 +5,7 @@ import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
 import { getReaction, REACTIONS, savePeople, setReaction } from "../reactions.js";
+import { loadTaste } from "../taste.js";
 import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
@@ -465,6 +466,11 @@ libraryRouter.delete("/seen/:titleId/reaction", async (req, res) => {
   }
   await setReaction(pool!, req.user!.id, req.params.titleId, null);
   res.json({ reaction: null });
+});
+
+// What the user's likes and dislikes say about their taste.
+libraryRouter.get("/taste", async (req, res) => {
+  res.json(await loadTaste(pool!, req.user!.id));
 });
 
 // "Seen it" marks made while logged out (kept in the browser), copied to the

@@ -79,3 +79,23 @@ export function buildTaste(titles: RatedTitle[]): TasteProfile {
     people: rank(people).map((w) => ({ ...w, name: people.get(w.key)!.name })),
   };
 }
+
+type Row = { reaction: Reaction; title: { genres?: unknown; year?: unknown } | null; people: Person[] | null };
+
+/** Every title the user has rated, as the traits we score. */
+export async function loadRatedTitles(db: Db, userId: string): Promise<RatedTitle[]> {
+  const { rows } = await db.query<Row>(
+    "SELECT reaction, title, people FROM seen WHERE user_id = $1 AND reaction IS NOT NULL ORDER BY reacted_at DESC",
+    [userId],
+  );
+  return rows.map((r) => ({
+    reaction: r.reaction,
+    genres: Array.isArray(r.title?.genres) ? r.title.genres.filter((g): g is string => typeof g === "string") : [],
+    year: typeof r.title?.year === "number" ? r.title.year : undefined,
+    people: r.people ?? [],
+  }));
+}
+
+export async function loadTaste(db: Db, userId: string): Promise<TasteProfile> {
+  return buildTaste(await loadRatedTitles(db, userId));
+}
