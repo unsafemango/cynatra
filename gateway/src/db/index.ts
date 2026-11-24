@@ -70,6 +70,10 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- The cast and director of a rated title, [{"id": 525, "name": "..."}], saved
+-- when it's rated so the taste profile can score people.
+ALTER TABLE seen ADD COLUMN IF NOT EXISTS people jsonb;
+
 -- Started but not finished. Marking a title seen removes it from here.
 CREATE TABLE IF NOT EXISTS watching (
   user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

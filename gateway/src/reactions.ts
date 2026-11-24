@@ -1,4 +1,6 @@
 import type { Pool, PoolClient } from "pg";
+import { callPicker } from "./picker.js";
+import type { Person } from "./taste.js";
 
 // A thumbs up or down on a title the user has seen.
 
@@ -28,4 +30,42 @@ export async function getReaction(db: Db, userId: string, titleId: string): Prom
     [userId, titleId],
   );
   return rows[0]?.reaction ?? null;
+}
+
+const CAST_LIMIT = 5;
+const LEAD_JOBS = new Set(["Director", "Creator"]);
+
+/** The people worth scoring on a full title: its directors or creators and top-billed cast. */
+export function leadPeople(full: {
+  cast?: { id: number; name: string }[];
+  crew?: { job: string; people: Person[] }[];
+}): Person[] {
+  const leads = (full.crew ?? []).filter((c) => LEAD_JOBS.has(c.job)).flatMap((c) => c.people);
+  const cast = (full.cast ?? []).slice(0, CAST_LIMIT);
+  return [...new Map([...leads, ...cast].map((p) => [p.id, { id: p.id, name: p.name }])).values()];
+}
+
+/**
+ * Saves who's in a rated title. Best effort: the picker may be down, and the
+ * rating is already saved, so a failure just leaves people out of the profile.
+ */
+export async function savePeople(db: Db, userId: string, titleId: string, region: string) {
+  const [media, id] = titleId.split(":");
+  try {
+    const { rows } = await db.query("SELECT people IS NOT NULL AS has FROM seen WHERE user_id = $1 AND title_id = $2", [
+      userId,
+      titleId,
+    ]);
+    if (rows.length === 0 || rows[0].has) return;
+    const { status, body } = await callPicker(`/title/${media}/${id}/full?region=${region}`);
+    if (status !== 200) return;
+    const people = leadPeople(body.details ?? {});
+    await db.query("UPDATE seen SET people = $3 WHERE user_id = $1 AND title_id = $2", [
+      userId,
+      titleId,
+      JSON.stringify(people),
+    ]);
+  } catch {
+    // Keep the rating without people.
+  }
 }

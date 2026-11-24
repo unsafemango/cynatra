@@ -4,7 +4,7 @@ import { requireAuth, requireDb } from "../auth.js";
 import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
-import { getReaction, REACTIONS, setReaction } from "../reactions.js";
+import { getReaction, REACTIONS, savePeople, setReaction } from "../reactions.js";
 import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
@@ -452,6 +452,9 @@ libraryRouter.put("/seen/:titleId/reaction", async (req, res) => {
     res.status(404).json({ error: "Mark the title as seen before rating it" });
     return;
   }
+  const { rows } = await pool!.query<{ region: string }>("SELECT region FROM users WHERE id = $1", [req.user!.id]);
+  // Don't make the thumb wait on the picker.
+  void savePeople(pool!, req.user!.id, req.params.titleId, rows[0]?.region ?? DEFAULT_REGION);
   res.json({ reaction: body.data.reaction });
 });
 
