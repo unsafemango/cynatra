@@ -5,7 +5,7 @@ import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
 import { getReaction, REACTIONS, savePeople, setReaction } from "../reactions.js";
-import { loadTaste } from "../taste.js";
+import { loadTaste, ratedWithoutPeople } from "../taste.js";
 import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
@@ -470,7 +470,13 @@ libraryRouter.delete("/seen/:titleId/reaction", async (req, res) => {
 
 // What the user's likes and dislikes say about their taste.
 libraryRouter.get("/taste", async (req, res) => {
-  res.json(await loadTaste(pool!, req.user!.id));
+  const userId = req.user!.id;
+  res.json(await loadTaste(pool!, userId));
+  // Fill in people for titles rated before they were tracked; shows up next time.
+  const { rows } = await pool!.query<{ region: string }>("SELECT region FROM users WHERE id = $1", [userId]);
+  for (const id of await ratedWithoutPeople(pool!, userId)) {
+    void savePeople(pool!, userId, id, rows[0]?.region ?? DEFAULT_REGION);
+  }
 });
 
 // "Seen it" marks made while logged out (kept in the browser), copied to the

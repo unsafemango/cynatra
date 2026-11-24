@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, test } from "node:test";
 import pg from "pg";
 import { migrate, pool } from "./db/index.js";
-import { leadPeople, setReaction } from "./reactions.js";
-import { loadTaste } from "./taste.js";
+import { leadPeople, savePeople, setReaction } from "./reactions.js";
+import { loadTaste, ratedWithoutPeople } from "./taste.js";
 
 let db: pg.PoolClient;
 let userId: string;
@@ -91,4 +91,50 @@ test("leadPeople keeps directors and the top-billed cast without repeats", () =>
   });
   assert.deepEqual(people.map((p) => p.id), [3, 100, 1, 2, 4, 5]);
   assert.deepEqual(leadPeople({}), []);
+});
+
+const savedPeople = async (id: string) =>
+  (await db.query("SELECT people FROM seen WHERE user_id = $1 AND title_id = $2", [userId, id])).rows[0].people;
+
+test("savePeople stores the cast and director from the picker, once", async () => {
+  await seen("movie:1", { genres: ["Drama"] });
+  const real = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return Response.json({
+      details: { cast: [{ id: 1, name: "A" }], crew: [{ job: "Director", people: [{ id: 2, name: "D" }] }] },
+    });
+  }) as typeof fetch;
+  try {
+    await savePeople(db, userId, "movie:1", "CA");
+    await savePeople(db, userId, "movie:1", "CA");
+  } finally {
+    globalThis.fetch = real;
+  }
+  assert.deepEqual(await savedPeople("movie:1"), [{ id: 2, name: "D" }, { id: 1, name: "A" }]);
+  assert.equal(calls, 1, "already-saved titles aren't looked up again");
+});
+
+test("savePeople leaves the row alone when the picker is down", async () => {
+  await seen("movie:1", { genres: ["Drama"] });
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new Error("picker down");
+  }) as typeof fetch;
+  try {
+    await savePeople(db, userId, "movie:1", "CA");
+  } finally {
+    globalThis.fetch = real;
+  }
+  assert.equal(await savedPeople("movie:1"), null);
+});
+
+test("ratedWithoutPeople lists rated titles that still need their cast", async () => {
+  await seen("movie:1", null, [{ id: 1, name: "A" }]);
+  await seen("movie:2", null);
+  await seen("movie:3", null);
+  await setReaction(db, userId, "movie:1", "like");
+  await setReaction(db, userId, "movie:2", "like");
+  assert.deepEqual(await ratedWithoutPeople(db, userId), ["movie:2"]);
 });

@@ -99,3 +99,15 @@ export async function loadRatedTitles(db: Db, userId: string): Promise<RatedTitl
 export async function loadTaste(db: Db, userId: string): Promise<TasteProfile> {
   return buildTaste(await loadRatedTitles(db, userId));
 }
+
+/**
+ * Rated titles whose cast hasn't been saved yet (rated before people were
+ * tracked, or while the picker was down), newest first.
+ */
+export async function ratedWithoutPeople(db: Db, userId: string, limit = 10): Promise<string[]> {
+  const { rows } = await db.query<{ title_id: string }>(
+    "SELECT title_id FROM seen WHERE user_id = $1 AND reaction IS NOT NULL AND people IS NULL ORDER BY reacted_at DESC LIMIT $2",
+    [userId, limit],
+  );
+  return rows.map((r) => r.title_id);
+}
