@@ -3,10 +3,13 @@ package picker
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand/v2"
+	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/cynatra/picker/internal/tmdb"
 )
@@ -82,6 +85,7 @@ func genreTraits(id int) []string {
 type scorer struct {
 	genres  map[string]float64 // by trait, -1 to 1
 	decades map[int]float64    // -1 to 1
+	liked   []int              // people, strongest first
 }
 
 // Weights grow with the number of ratings, so each kind is scaled by its
@@ -110,7 +114,37 @@ func newScorer(t *Taste) *scorer {
 	for _, w := range t.Decades {
 		decades[w.Key] += w.Weight
 	}
-	return &scorer{genres: scaled(genres), decades: scaled(decades)}
+	people := slices.Clone(t.People)
+	slices.SortStableFunc(people, func(a, b Weighted[int]) int { return cmp.Compare(b.Weight, a.Weight) })
+	var liked []int
+	for _, w := range people {
+		if w.Weight > 0 && w.Key > 0 && len(liked) < maxLikedPeople {
+			liked = append(liked, w.Key)
+		}
+	}
+	return &scorer{genres: scaled(genres), decades: scaled(decades), liked: liked}
+}
+
+const (
+	// How often a spin looks for liked people first. Kept low: their movies are
+	// a small pool that would soon repeat.
+	likedPeopleShare = 0.25
+	maxLikedPeople   = 8
+)
+
+// peopleQuery narrows a discover query to movies with any of the liked people.
+// TMDB can't filter series by who's in them.
+func (s *scorer) peopleQuery(a attempt, q url.Values) (url.Values, bool) {
+	if s == nil || len(s.liked) == 0 || a.media != "movie" {
+		return nil, false
+	}
+	ids := make([]string, len(s.liked))
+	for i, id := range s.liked {
+		ids[i] = strconv.Itoa(id)
+	}
+	focused := maps.Clone(q)
+	focused.Set("with_people", strings.Join(ids, "|")) // | = OR
+	return focused, true
 }
 
 func scaled[K comparable](m map[K]float64) map[K]float64 {

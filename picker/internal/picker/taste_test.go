@@ -2,6 +2,7 @@ package picker
 
 import (
 	"encoding/json"
+	"net/url"
 	"slices"
 	"testing"
 
@@ -143,5 +144,24 @@ func TestShuffleWithoutTasteIsEven(t *testing.T) {
 	got := firsts(none, []tmdb.DiscoverResult{{ID: 1, GenreIDs: []int{35}}, {ID: 2, GenreIDs: []int{27}}})
 	if got[1] < 1300 || got[2] < 1300 {
 		t.Errorf("firsts = %v", got)
+	}
+}
+
+func TestPeopleQuery(t *testing.T) {
+	s := newScorer(&Taste{People: []Weighted[int]{{10, 0.2}, {20, -1}, {30, 0.9}}})
+	q := url.Values{"sort_by": {"popularity.desc"}}
+	focused, ok := s.peopleQuery(attempt{"movie", "movie"}, q)
+	if !ok || focused.Get("with_people") != "30|10" || focused.Get("sort_by") != "popularity.desc" {
+		t.Errorf("focused = %v, %v", focused, ok)
+	}
+	if q.Has("with_people") {
+		t.Error("the original query should be left alone")
+	}
+	if _, ok := s.peopleQuery(attempt{"series", "tv"}, q); ok {
+		t.Error("TMDB can't filter series by people")
+	}
+	dislikes := newScorer(&Taste{People: []Weighted[int]{{20, -1}}})
+	if _, ok := dislikes.peopleQuery(attempt{"movie", "movie"}, q); ok {
+		t.Error("nobody liked, nothing to look for")
 	}
 }

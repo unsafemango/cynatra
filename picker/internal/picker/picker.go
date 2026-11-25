@@ -228,7 +228,18 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 	if !ok {
 		return nil, ErrNoMatch
 	}
+	// Now and then, look only among movies with people the user liked.
+	if focused, ok := r.scorer.peopleQuery(a, q); ok && rand.Float64() < likedPeopleShare {
+		t, err := p.search(ctx, a, r, focused, excluded)
+		if !errors.Is(err, ErrNoMatch) {
+			return t, err
+		}
+	}
+	return p.search(ctx, a, r, q, excluded)
+}
 
+// search picks from the titles one discover query finds.
+func (p *Picker) search(ctx context.Context, a attempt, r Request, q url.Values, excluded map[string]bool) (*Title, error) {
 	first, err := p.tmdb.Discover(ctx, a.media, withPage(q, 1))
 	if err != nil {
 		return nil, err
