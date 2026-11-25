@@ -2,6 +2,7 @@ package picker
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"maps"
 	"math"
@@ -83,9 +84,10 @@ func genreTraits(id int) []string {
 
 // scorer is a Taste ready to rate titles with.
 type scorer struct {
-	genres  map[string]float64 // by trait, -1 to 1
-	decades map[int]float64    // -1 to 1
-	liked   []int              // people, strongest first
+	genres   map[string]float64 // by trait, -1 to 1
+	decades  map[int]float64    // -1 to 1
+	liked    []int              // people, strongest first
+	disliked map[int]bool
 }
 
 // Weights grow with the number of ratings, so each kind is scaled by its
@@ -117,12 +119,16 @@ func newScorer(t *Taste) *scorer {
 	people := slices.Clone(t.People)
 	slices.SortStableFunc(people, func(a, b Weighted[int]) int { return cmp.Compare(b.Weight, a.Weight) })
 	var liked []int
+	disliked := map[int]bool{}
 	for _, w := range people {
-		if w.Weight > 0 && w.Key > 0 && len(liked) < maxLikedPeople {
+		switch {
+		case w.Weight < 0:
+			disliked[w.Key] = true
+		case w.Key > 0 && len(liked) < maxLikedPeople:
 			liked = append(liked, w.Key)
 		}
 	}
-	return &scorer{genres: scaled(genres), decades: scaled(decades), liked: liked}
+	return &scorer{genres: scaled(genres), decades: scaled(decades), liked: liked, disliked: disliked}
 }
 
 const (
@@ -210,4 +216,61 @@ func (s *scorer) shuffle(candidates []tmdb.DiscoverResult) {
 	for i, d := range order {
 		candidates[i] = d.res
 	}
+}
+
+const (
+	// Titles passed over per spin for who's in them; after that the draw stands.
+	maxAvoided = 3
+	// How far down the cast a disliked person counts, as in the gateway's profile.
+	leadCast = 5
+)
+
+// avoided counts the titles a spin passed over, keeping the first in case
+// nothing else turns up.
+type avoided struct {
+	n     int
+	title *Title
+}
+
+// holdBack reports whether to pass over a title because someone the user
+// disliked made it or leads its cast.
+func (p *Picker) holdBack(ctx context.Context, a attempt, r Request, t *Title, avoid *avoided) bool {
+	if r.scorer == nil || len(r.scorer.disliked) == 0 || avoid.n >= maxAvoided {
+		return false
+	}
+	d, err := p.tmdb.FullDetails(ctx, a.media, t.TMDBID)
+	if err != nil {
+		return false // the pick matters more than the taste
+	}
+	if !slices.ContainsFunc(leadPeople(a.media, d), func(id int) bool { return r.scorer.disliked[id] }) {
+		return false
+	}
+	avoid.n++
+	if avoid.title == nil {
+		avoid.title = t
+	}
+	return true
+}
+
+// leadPeople is a title's creators, directors and top-billed cast.
+func leadPeople(media string, d *tmdb.FullDetails) []int {
+	credits := d.Credits
+	if media == "tv" {
+		credits = d.AggregateCredits
+	}
+	var ids []int
+	for _, c := range d.CreatedBy {
+		ids = append(ids, c.ID)
+	}
+	for _, g := range toCrew(credits.Crew) {
+		if g.Job == "Director" {
+			for _, person := range g.People {
+				ids = append(ids, person.ID)
+			}
+		}
+	}
+	for _, c := range credits.Cast[:min(leadCast, len(credits.Cast))] {
+		ids = append(ids, c.ID)
+	}
+	return ids
 }

@@ -228,18 +228,23 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 	if !ok {
 		return nil, ErrNoMatch
 	}
+	var avoid avoided
 	// Now and then, look only among movies with people the user liked.
 	if focused, ok := r.scorer.peopleQuery(a, q); ok && rand.Float64() < likedPeopleShare {
-		t, err := p.search(ctx, a, r, focused, excluded)
+		t, err := p.search(ctx, a, r, focused, excluded, &avoid)
 		if !errors.Is(err, ErrNoMatch) {
 			return t, err
 		}
 	}
-	return p.search(ctx, a, r, q, excluded)
+	t, err := p.search(ctx, a, r, q, excluded, &avoid)
+	if errors.Is(err, ErrNoMatch) && avoid.title != nil {
+		return avoid.title, nil // better than nothing
+	}
+	return t, err
 }
 
 // search picks from the titles one discover query finds.
-func (p *Picker) search(ctx context.Context, a attempt, r Request, q url.Values, excluded map[string]bool) (*Title, error) {
+func (p *Picker) search(ctx context.Context, a attempt, r Request, q url.Values, excluded map[string]bool, avoid *avoided) (*Title, error) {
 	first, err := p.tmdb.Discover(ctx, a.media, withPage(q, 1))
 	if err != nil {
 		return nil, err
@@ -263,7 +268,7 @@ func (p *Picker) search(ctx context.Context, a attempt, r Request, q url.Values,
 			continue
 		}
 		tried[n] = true
-		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded, &checks); err != nil || ok {
+		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded, &checks, avoid); err != nil || ok {
 			return t, err
 		}
 	}
@@ -272,14 +277,14 @@ func (p *Picker) search(ctx context.Context, a attempt, r Request, q url.Values,
 			continue
 		}
 		tried[n] = true
-		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded, &checks); err != nil || ok {
+		if t, ok, err := p.tryPage(ctx, a, r, q, n, first, excluded, &checks, avoid); err != nil || ok {
 			return t, err
 		}
 	}
 	return nil, ErrNoMatch
 }
 
-func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, checks *int) (*Title, bool, error) {
+func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, checks *int, avoid *avoided) (*Title, bool, error) {
 	candidates, err := p.candidatesFromPage(ctx, a.media, r, q, n, first, excluded)
 	if err != nil {
 		return nil, false, err
@@ -301,6 +306,9 @@ func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values
 		}
 		if r.Look == "colorful" {
 			t.Colorful = true
+		}
+		if p.holdBack(ctx, a, r, t, avoid) {
+			continue
 		}
 		return t, true, nil
 	}
