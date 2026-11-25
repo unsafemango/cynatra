@@ -2,7 +2,10 @@ package picker
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
+
+	"github.com/cynatra/picker/internal/tmdb"
 )
 
 func TestNormalizeTaste(t *testing.T) {
@@ -93,5 +96,52 @@ func TestEveryFilterGenreHasATMDBName(t *testing.T) {
 		if !known[g.Movie] || (g.TV != 0 && !known[g.TV]) {
 			t.Errorf("%s: no TMDB name", g.Slug)
 		}
+	}
+}
+
+// firsts counts which title comes first over many shuffles.
+func firsts(s *scorer, candidates []tmdb.DiscoverResult) map[int]int {
+	count := map[int]int{}
+	for range 3000 {
+		c := slices.Clone(candidates)
+		s.shuffle(c)
+		count[c[0].ID]++
+	}
+	return count
+}
+
+func TestShuffleFavoursTaste(t *testing.T) {
+	candidates := []tmdb.DiscoverResult{
+		{ID: 1, GenreIDs: []int{35}},
+		{ID: 2, GenreIDs: []int{18}},
+		{ID: 3, GenreIDs: []int{27}},
+	}
+	s := newScorer(&Taste{Genres: []Weighted[string]{{"Comedy", 3}, {"Horror", -3}}})
+	got := firsts(s, candidates)
+	// Expected shares are about 87%, 12% and 2%.
+	if got[1] < 2400 || got[2] <= got[3] {
+		t.Errorf("firsts = %v", got)
+	}
+	if got[3] == 0 {
+		t.Errorf("a disliked genre should still be possible: %v", got)
+	}
+}
+
+func TestShuffleUsesReleaseDates(t *testing.T) {
+	candidates := []tmdb.DiscoverResult{
+		{ID: 1, ReleaseDate: "1994-05-01"},
+		{ID: 2, FirstAirDate: "2015-05-01"},
+	}
+	s := newScorer(&Taste{Decades: []Weighted[int]{{1990, 4}, {2010, -4}}})
+	if got := firsts(s, candidates); got[1] < 2400 {
+		t.Errorf("firsts = %v", got)
+	}
+}
+
+func TestShuffleWithoutTasteIsEven(t *testing.T) {
+	var none *scorer
+	got := firsts(none, []tmdb.DiscoverResult{{ID: 1, GenreIDs: []int{35}}, {ID: 2, GenreIDs: []int{27}}})
+	if got[1] < 1300 || got[2] < 1300 {
+		t.Errorf("firsts = %v", got)
 	}
 }

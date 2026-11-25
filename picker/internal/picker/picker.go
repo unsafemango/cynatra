@@ -46,7 +46,8 @@ type Request struct {
 	// Favour titles like those the user liked (see taste.go).
 	Taste *Taste `json:"taste,omitempty"`
 
-	providerIDs []int // Services as TMDB provider IDs, filled in by Pick
+	providerIDs []int   // Services as TMDB provider IDs, filled in by Pick
+	scorer      *scorer // Taste ready for scoring, filled in by Pick
 }
 
 type Provider struct {
@@ -189,6 +190,7 @@ func (p *Picker) Pick(ctx context.Context, r Request) (*Title, error) {
 		}
 		r.providerIDs = ids
 	}
+	r.scorer = newScorer(r.Taste)
 	excluded := make(map[string]bool, len(r.ExcludeIDs))
 	for _, id := range r.ExcludeIDs {
 		excluded[id] = true
@@ -267,7 +269,7 @@ func (p *Picker) pickFrom(ctx context.Context, a attempt, r Request, excluded ma
 }
 
 func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, checks *int) (*Title, bool, error) {
-	candidates, err := p.candidatesFromPage(ctx, a.media, q, n, first, excluded, r.Look == "colorful")
+	candidates, err := p.candidatesFromPage(ctx, a.media, r, q, n, first, excluded)
 	if err != nil {
 		return nil, false, err
 	}
@@ -295,7 +297,8 @@ func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values
 }
 
 // candidatesFromPage returns the page's titles that aren't excluded, shuffled.
-func (p *Picker) candidatesFromPage(ctx context.Context, media string, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool, colorful bool) ([]tmdb.DiscoverResult, error) {
+// With a taste, better matches tend to come first (see scorer.shuffle).
+func (p *Picker) candidatesFromPage(ctx context.Context, media string, r Request, q url.Values, n int, first *tmdb.DiscoverPage, excluded map[string]bool) ([]tmdb.DiscoverResult, error) {
 	page := first
 	if n != 1 {
 		var err error
@@ -309,10 +312,10 @@ func (p *Picker) candidatesFromPage(ctx context.Context, media string, q url.Val
 			candidates = append(candidates, res)
 		}
 	}
-	if colorful {
+	if r.Look == "colorful" {
 		candidates = p.brightAndColorful(ctx, candidates)
 	}
-	rand.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
+	r.scorer.shuffle(candidates)
 	return candidates, nil
 }
 

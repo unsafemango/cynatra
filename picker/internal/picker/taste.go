@@ -1,10 +1,14 @@
 package picker
 
 import (
+	"cmp"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"slices"
 	"strconv"
+
+	"github.com/cynatra/picker/internal/tmdb"
 )
 
 // Taste is what a user's likes and dislikes say about them, as the gateway
@@ -139,4 +143,37 @@ func (s *scorer) score(genreIDs []int, year int) float64 {
 		total += decadeShare * s.decades[year/10*10]
 	}
 	return total
+}
+
+// How hard a taste leans on the draw: a title scoring 1 is e² (about seven)
+// times as likely to come first as a neutral one, which is that much likelier
+// than one scoring -1. Nothing is ruled out.
+const tasteStrength = 2.0
+
+// shuffle puts candidates in random order. Without a taste every order is as
+// likely; with one, each next title is drawn in proportion to its odds.
+func (s *scorer) shuffle(candidates []tmdb.DiscoverResult) {
+	if s == nil {
+		rand.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
+		return
+	}
+	// Weighted sampling without replacement: sort by an exponential draw
+	// divided by the title's odds.
+	type drawn struct {
+		res tmdb.DiscoverResult
+		at  float64
+	}
+	order := make([]drawn, len(candidates))
+	for i, c := range candidates {
+		date := c.ReleaseDate
+		if date == "" {
+			date = c.FirstAirDate
+		}
+		odds := math.Exp(tasteStrength * s.score(c.GenreIDs, year(date)))
+		order[i] = drawn{c, rand.ExpFloat64() / odds}
+	}
+	slices.SortFunc(order, func(a, b drawn) int { return cmp.Compare(a.at, b.at) })
+	for i, d := range order {
+		candidates[i] = d.res
+	}
 }
