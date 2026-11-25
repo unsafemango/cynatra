@@ -43,6 +43,8 @@ type Request struct {
 	Services []string `json:"services"`
 	// Only hidden gems: highly rated, but not widely watched (see gems.go).
 	Gems bool `json:"gems"`
+	// Favour titles like those the user liked (see taste.go).
+	Taste *Taste `json:"taste,omitempty"`
 
 	providerIDs []int // Services as TMDB provider IDs, filled in by Pick
 }
@@ -171,7 +173,7 @@ func Normalize(r *Request) error {
 			return fmt.Errorf("unknown service %q", k)
 		}
 	}
-	return nil
+	return normalizeTaste(r)
 }
 
 // Pick returns one random title. For "any" and "animation", it tries each
