@@ -93,6 +93,11 @@ test("leadPeople keeps directors and the top-billed cast without repeats", () =>
   assert.deepEqual(leadPeople({}), []);
 });
 
+test("leadPeople counts a series' creators", () => {
+  const people = leadPeople({ createdBy: [{ id: 9, name: "Creator" }], cast: [{ id: 1, name: "A" }] });
+  assert.deepEqual(people.map((p) => p.id), [9, 1]);
+});
+
 const savedPeople = async (id: string) =>
   (await db.query("SELECT people FROM seen WHERE user_id = $1 AND title_id = $2", [userId, id])).rows[0].people;
 

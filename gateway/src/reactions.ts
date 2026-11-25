@@ -33,14 +33,15 @@ export async function getReaction(db: Db, userId: string, titleId: string): Prom
 }
 
 const CAST_LIMIT = 5;
-const LEAD_JOBS = new Set(["Director", "Creator"]);
 
-/** The people worth scoring on a full title: its directors or creators and top-billed cast. */
+/** The people worth scoring on a full title: its creators, directors and top-billed cast. */
 export function leadPeople(full: {
+  createdBy?: Person[];
   cast?: { id: number; name: string }[];
   crew?: { job: string; people: Person[] }[];
 }): Person[] {
-  const leads = (full.crew ?? []).filter((c) => LEAD_JOBS.has(c.job)).flatMap((c) => c.people);
+  const directors = (full.crew ?? []).filter((c) => c.job === "Director").flatMap((c) => c.people);
+  const leads = [...(full.createdBy ?? []), ...directors];
   const cast = (full.cast ?? []).slice(0, CAST_LIMIT);
   return [...new Map([...leads, ...cast].map((p) => [p.id, { id: p.id, name: p.name }])).values()];
 }
