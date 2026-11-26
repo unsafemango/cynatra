@@ -4,6 +4,7 @@ import { pool } from "../db/index.js";
 import { callPicker } from "../picker.js";
 import { perIp } from "../rate-limit.js";
 import { DEFAULT_REGION } from "../config.js";
+import { tasteForPick, type TasteProfile } from "../taste.js";
 
 export const pickRouter = Router();
 
@@ -26,6 +27,8 @@ const pickRequest = z.object({
   gems: z.boolean().optional(),
   // Only titles streaming on these services (keys like "netflix") in the region.
   services: z.array(z.string().regex(/^[a-z0-9-]{1,60}$/, "Unknown streaming service")).max(30).default([]),
+  // Favour titles like those the signed-in user liked.
+  matchTaste: z.boolean().default(false),
 });
 
 // Streaming services in a country, for the Spin page's "Streaming on" filter.
@@ -63,7 +66,7 @@ pickRouter.get("/popular", async (req, res) => {
 // The most popular titles matching Spin filters, for the web app's landing pages
 // (e.g. popular horror movies). Same filters as /pick; no randomness, no user data.
 const browseRequest = z.object({
-  request: pickRequest.omit({ excludeIds: true, excludeSeen: true }),
+  request: pickRequest.omit({ excludeIds: true, excludeSeen: true, matchTaste: true }),
   limit: z.number().int().min(1).max(40).default(20),
 });
 
@@ -118,9 +121,10 @@ pickRouter.post("/pick", perIp(60, 60_000, "Lots of spins! Please wait a moment 
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid filters" });
     return;
   }
-  const { excludeSeen, ...filters } = parsed.data;
+  const { excludeSeen, matchTaste, ...filters } = parsed.data;
   const user = req.user;
   const exclude = new Set(filters.excludeIds);
+  let taste: TasteProfile | undefined;
 
   if (user && pool) {
     if (excludeSeen) {
@@ -135,11 +139,12 @@ pickRouter.post("/pick", perIp(60, 60_000, "Lots of spins! Please wait a moment 
       const { rows } = await pool.query<{ region: string }>("SELECT region FROM users WHERE id = $1", [user.id]);
       filters.region = rows[0]?.region;
     }
+    if (matchTaste) taste = await tasteForPick(pool, user.id);
   }
 
   const { status, body } = await callPicker("/pick", {
     method: "POST",
-    body: JSON.stringify({ ...filters, excludeIds: [...exclude] }),
+    body: JSON.stringify({ ...filters, excludeIds: [...exclude], taste }),
   });
 
   if (status === 200 && user && pool) {

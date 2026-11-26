@@ -4,7 +4,7 @@ import { after, afterEach, before, beforeEach, test } from "node:test";
 import pg from "pg";
 import { migrate, pool } from "./db/index.js";
 import { leadPeople, savePeople, setReaction } from "./reactions.js";
-import { loadTaste, ratedWithoutPeople } from "./taste.js";
+import { loadTaste, ratedWithoutPeople, tasteForPick } from "./taste.js";
 
 let db: pg.PoolClient;
 let userId: string;
@@ -61,6 +61,15 @@ test("clearing a rating removes it from the profile", async () => {
   await setReaction(db, userId, "movie:1", "like");
   await setReaction(db, userId, "movie:1", null);
   assert.deepEqual(await loadTaste(db, userId), { ratings: 0, genres: [], decades: [], people: [] });
+});
+
+test("spins get a taste only when there's something to go on", async () => {
+  await seen("movie:1", null);
+  await seen("movie:2", { genres: ["Drama"], year: 2000 });
+  await setReaction(db, userId, "movie:1", "like");
+  assert.equal(await tasteForPick(db, userId), undefined);
+  await setReaction(db, userId, "movie:2", "like");
+  assert.deepEqual((await tasteForPick(db, userId))?.genres.map((g) => g.key), ["Drama"]);
 });
 
 test("a rated title with no saved snapshot still counts as a rating", async () => {

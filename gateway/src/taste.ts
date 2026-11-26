@@ -100,6 +100,12 @@ export async function loadTaste(db: Db, userId: string): Promise<TasteProfile> {
   return buildTaste(await loadRatedTitles(db, userId));
 }
 
+/** The profile to send with a spin, or undefined when there's nothing to go on. */
+export async function tasteForPick(db: Db, userId: string): Promise<TasteProfile | undefined> {
+  const taste = await loadTaste(db, userId);
+  return taste.genres.length + taste.decades.length + taste.people.length > 0 ? taste : undefined;
+}
+
 /**
  * Rated titles whose cast hasn't been saved yet (rated before people were
  * tracked, or while the picker was down), newest first.
