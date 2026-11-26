@@ -86,6 +86,8 @@ type Title struct {
 	Colorful bool `json:"colorful,omitempty"`
 	// Gem: highly rated but not widely watched (a "hidden gem" badge).
 	Gem bool `json:"gem,omitempty"`
+	// Why is set on picks that match the viewer's taste.
+	Why *Why `json:"why,omitempty"`
 }
 
 type Picker struct {
@@ -310,6 +312,7 @@ func (p *Picker) tryPage(ctx context.Context, a attempt, r Request, q url.Values
 		if p.holdBack(ctx, a, r, t, avoid) {
 			continue
 		}
+		t.Why = p.explain(ctx, a, r, t)
 		return t, true, nil
 	}
 	return nil, false, nil

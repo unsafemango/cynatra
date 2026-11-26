@@ -242,7 +242,7 @@ func (p *Picker) holdBack(ctx context.Context, a attempt, r Request, t *Title, a
 	if err != nil {
 		return false // the pick matters more than the taste
 	}
-	if !slices.ContainsFunc(leadPeople(a.media, d), func(id int) bool { return r.scorer.disliked[id] }) {
+	if !slices.ContainsFunc(leadPeople(a.media, d), func(person PersonRef) bool { return r.scorer.disliked[person.ID] }) {
 		return false
 	}
 	avoid.n++
@@ -253,24 +253,22 @@ func (p *Picker) holdBack(ctx context.Context, a attempt, r Request, t *Title, a
 }
 
 // leadPeople is a title's creators, directors and top-billed cast.
-func leadPeople(media string, d *tmdb.FullDetails) []int {
+func leadPeople(media string, d *tmdb.FullDetails) []PersonRef {
 	credits := d.Credits
 	if media == "tv" {
 		credits = d.AggregateCredits
 	}
-	var ids []int
+	var people []PersonRef
 	for _, c := range d.CreatedBy {
-		ids = append(ids, c.ID)
+		people = append(people, PersonRef{ID: c.ID, Name: c.Name})
 	}
 	for _, g := range toCrew(credits.Crew) {
 		if g.Job == "Director" {
-			for _, person := range g.People {
-				ids = append(ids, person.ID)
-			}
+			people = append(people, g.People...)
 		}
 	}
 	for _, c := range credits.Cast[:min(leadCast, len(credits.Cast))] {
-		ids = append(ids, c.ID)
+		people = append(people, PersonRef{ID: c.ID, Name: c.Name})
 	}
-	return ids
+	return people
 }

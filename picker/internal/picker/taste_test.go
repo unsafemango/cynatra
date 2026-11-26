@@ -166,16 +166,24 @@ func TestPeopleQuery(t *testing.T) {
 	}
 }
 
+func personIDs(people []PersonRef) []int {
+	var ids []int
+	for _, p := range people {
+		ids = append(ids, p.ID)
+	}
+	return ids
+}
+
 func TestLeadPeople(t *testing.T) {
 	movie := decode(t, `{"credits": {
 		"cast": [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}, {"id": 5}, {"id": 6}],
 		"crew": [{"id": 7, "job": "Director"}, {"id": 8, "job": "Editor"}]}}`)
-	if got := leadPeople("movie", movie); !slices.Equal(got, []int{7, 1, 2, 3, 4, 5}) {
+	if got := leadPeople("movie", movie); !slices.Equal(personIDs(got), []int{7, 1, 2, 3, 4, 5}) {
 		t.Errorf("movie leads = %v", got)
 	}
 	series := decode(t, `{"created_by": [{"id": 9}], "aggregate_credits": {
 		"cast": [{"id": 1}], "crew": [{"id": 7, "jobs": [{"job": "Director"}]}]}}`)
-	if got := leadPeople("tv", series); !slices.Equal(got, []int{9, 7, 1}) {
+	if got := leadPeople("tv", series); !slices.Equal(personIDs(got), []int{9, 7, 1}) {
 		t.Errorf("series leads = %v", got)
 	}
 }
