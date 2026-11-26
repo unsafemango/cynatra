@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { describeFilters } from "@/components/FilterPanel";
 import { FiltersDrawer } from "@/components/FiltersDrawer";
+import { MatchTasteToggle } from "@/components/MatchTasteToggle";
 import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
 import { StableLabel } from "@/components/StableLabel";
@@ -16,6 +17,8 @@ import { localSeen } from "@/lib/library";
 const FILTERS_KEY = "cynatra:filters";
 // The last result in this tab, so it's still there after going to log in and back.
 const LAST_SPIN_KEY = "cynatra:last-spin";
+// "off" once someone switches "Match my taste" off; on until then.
+const MATCH_TASTE_KEY = "cynatra:match-taste";
 const SPIN_LABELS = ["🎲 Spin", "Spinning…", "🎲 Spin again"] as const;
 const DEFAULT_FILTERS: Filters = { type: "any", genres: [], minRating: 6.5 };
 // Make the reel visible long enough to feel like a spin, even on cache hits.
@@ -37,6 +40,9 @@ export function SpinPage() {
   // Logged out: a guess from the browser's languages (set after mount).
   const [guessedRegion, setGuessedRegion] = useState(DEFAULT_REGION);
   const region = user?.region ?? guessedRegion;
+  const [matchTaste, setMatchTaste] = useState(true);
+  // How many titles they've rated (null until known).
+  const [ratings, setRatings] = useState<number | null>(null);
   const [result, setResult] = useState<Title | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +95,7 @@ export function SpinPage() {
         setFilters({ ...DEFAULT_FILTERS, ...JSON.parse(stored) });
         /* eslint-enable react-hooks/set-state-in-effect */
       }
+      setMatchTaste(localStorage.getItem(MATCH_TASTE_KEY) !== "off");
     } catch {
       // ignore
     }
@@ -131,6 +138,9 @@ export function SpinPage() {
       api<{ subscribed: { key: string }[] }>("/api/me/services/subscribed")
         .then((r) => !cancelled && setMyServices(r.subscribed.map((s) => s.key)))
         .catch(() => {});
+      api<{ ratings: number }>("/api/me/taste")
+        .then((r) => !cancelled && setRatings(r.ratings))
+        .catch(() => {});
     }
     return () => {
       cancelled = true;
@@ -144,6 +154,15 @@ export function SpinPage() {
     shown.current = [];
     try {
       localStorage.setItem(FILTERS_KEY, JSON.stringify(f));
+    } catch {
+      // ignore
+    }
+  };
+
+  const updateMatchTaste = (on: boolean) => {
+    setMatchTaste(on);
+    try {
+      localStorage.setItem(MATCH_TASTE_KEY, on ? "on" : "off");
     } catch {
       // ignore
     }
@@ -184,12 +203,12 @@ export function SpinPage() {
         const t = await api<Title>("/api/pick", {
           method: "POST",
           // The country streaming availability (and the service filter) is for.
-          body: JSON.stringify({ ...filters, region, excludeIds }),
+          body: JSON.stringify({ ...filters, region, excludeIds, matchTaste: Boolean(user) && matchTaste }),
         });
         shown.current.push(t.id);
         return t;
       }),
-    [run, filters, user, region],
+    [run, filters, user, region, matchTaste],
   );
 
   const spinWatchlist = useCallback(
@@ -323,6 +342,12 @@ export function SpinPage() {
             </ul>
           )}
         </div>
+
+        {user && (
+          <div className="mt-3">
+            <MatchTasteToggle on={matchTaste} onChange={updateMatchTaste} ratings={ratings} />
+          </div>
+        )}
 
         {user && (
           <p className="mt-3 text-center">
