@@ -40,7 +40,11 @@ export type Title = {
   gem?: boolean;
   /** On spin results for logged-in users: where it already is in their library. */
   library?: LibraryStatus;
+  /** On spins that matched the viewer's taste: what it has in common with their likes. */
+  why?: Why;
 };
+
+export type Why = { people?: string[]; genres?: string[]; decade?: number };
 
 /** Someone credited on a title; id opens /p/:id. */
 export type PersonRef = { id: number; name: string };

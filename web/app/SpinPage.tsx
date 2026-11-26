@@ -8,6 +8,7 @@ import { MatchTasteToggle } from "@/components/MatchTasteToggle";
 import { actionBtn, TitleCard } from "@/components/TitleCard";
 import { SpinLoader } from "@/components/SpinLoader";
 import { StableLabel } from "@/components/StableLabel";
+import { WhyThisPick } from "@/components/WhyThisPick";
 import { api, ApiError, fromSlug, type Filters, type Genre, type ProviderOption, type Title } from "@/lib/api";
 import { DEFAULT_REGION, flag, guessRegion, regionName } from "@/lib/regions";
 import { useAuth } from "@/lib/auth";
@@ -111,7 +112,8 @@ export function SpinPage() {
       try {
         const last = JSON.parse(sessionStorage.getItem(LAST_SPIN_KEY) ?? "null");
         if (last?.title?.id) {
-          const title: Title = { ...last.title, library: undefined };
+          // The reason was for whoever was signed in then.
+          const title: Title = { ...last.title, library: undefined, why: undefined };
           setResult(title);
           setSource(last.source === "watchlist" ? "watchlist" : "filters");
           setRestored(true);
@@ -413,6 +415,7 @@ export function SpinPage() {
                 ↻ {rerollLabel}
               </button>
             </div>
+            {user && result.why && <WhyThisPick why={result.why} />}
             <TitleCard
               key={result.id}
               title={result}
