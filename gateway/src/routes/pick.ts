@@ -148,7 +148,9 @@ pickRouter.post("/pick", perIp(60, 60_000, "Lots of spins! Please wait a moment 
   });
 
   if (status === 200 && user && pool) {
-    await pool.query("INSERT INTO history (user_id, title_id, title) VALUES ($1, $2, $3)", [user.id, body.id, body]);
+    // The reason belongs to this spin, not to the saved title.
+    const { why: _why, ...snapshot } = body;
+    await pool.query("INSERT INTO history (user_id, title_id, title) VALUES ($1, $2, $3)", [user.id, body.id, snapshot]);
     body.library = await libraryStatus(user.id, body.id);
   }
   res.status(status).json(body);

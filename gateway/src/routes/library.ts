@@ -18,7 +18,7 @@ const titleId = z.string().regex(/^(movie|tv):\d+$/);
 const titleBody = z
   .object({ id: titleId, title: z.string() })
   .passthrough()
-  .transform(({ details: _details, library: _library, ...snapshot }) => snapshot);
+  .transform(({ details: _details, library: _library, why: _why, ...snapshot }) => snapshot);
 
 const PAGE_SIZE = 10;
 
