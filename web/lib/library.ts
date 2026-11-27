@@ -51,6 +51,11 @@ export async function setReaction(id: string, reaction: Reaction | null) {
   else await api(path, { method: "DELETE" });
 }
 
+/** Clears every thumbs up and down, starting the taste profile over. Seen marks stay. */
+export function resetTaste() {
+  return api("/api/me/taste", { method: "DELETE" });
+}
+
 export function addToWatchlist(t: Title) {
   return api("/api/me/watchlist", { method: "POST", body: JSON.stringify(t) });
 }

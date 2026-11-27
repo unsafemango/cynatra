@@ -1,16 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { CheckIcon, Spinner } from "@/components/icons";
 import { api, type TasteProfile } from "@/lib/api";
+import { resetTaste } from "@/lib/library";
 
 // How many of each kind to name on either side.
 const SHOWN = { genres: 5, decades: 3, people: 5 };
+const EMPTY: TasteProfile = { ratings: 0, genres: [], decades: [], people: [] };
+
+type Reset = { kind: "idle" } | { kind: "busy" } | { kind: "done" } | { kind: "error"; message: string };
 
 /** The genres, decades and people the viewer's likes and dislikes point to. */
 export function TasteSummary() {
   const [taste, setTaste] = useState<TasteProfile | null>(null);
   const [failed, setFailed] = useState(false);
+  const [reset, setReset] = useState<Reset>({ kind: "idle" });
+
+  // Don't show an old status when coming back to this (kept-alive) page.
+  useLayoutEffect(() => () => setReset((r) => (r.kind === "busy" ? r : { kind: "idle" })), []);
 
   // Runs again when the (kept-alive) page is shown, so new ratings appear.
   useEffect(() => {
@@ -27,6 +36,18 @@ export function TasteSummary() {
     };
   }, []);
 
+  const startOver = async () => {
+    if (!confirm("Reset your taste? This clears every thumbs up and down. Your Seen list stays.")) return;
+    setReset({ kind: "busy" });
+    try {
+      await resetTaste();
+      setTaste(EMPTY);
+      setReset({ kind: "done" });
+    } catch (e) {
+      setReset({ kind: "error", message: e instanceof Error ? e.message : "Couldn't reset. Please try again." });
+    }
+  };
+
   if (!taste) {
     return failed ? (
       <p className="text-sm text-muted">Couldn&apos;t load your taste. Try again in a moment.</p>
@@ -35,31 +56,56 @@ export function TasteSummary() {
     );
   }
 
-  if (taste.ratings === 0) {
-    return (
-      <p className="text-sm text-muted">
-        Nothing yet. Give a thumbs up or down to{" "}
-        <Link href="/library?tab=seen" className="text-foreground underline underline-offset-4">
-          titles you&apos;ve seen
-        </Link>{" "}
-        and spins can lean toward what you like.
-      </p>
-    );
-  }
-
   const liked = side(taste, 1);
   const disliked = side(taste, -1);
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted">
-        Based on {taste.ratings} rated {taste.ratings === 1 ? "title" : "titles"}.
-      </p>
-      {liked.length > 0 && <Traits heading="You lean toward" traits={liked} />}
-      {disliked.length > 0 && <Traits heading="You lean away from" traits={disliked} />}
-      {liked.length + disliked.length === 0 && (
-        <p className="text-sm text-muted">No clear leaning yet. Rate a few more.</p>
+      {taste.ratings === 0 ? (
+        <p className="text-sm text-muted">
+          Nothing yet. Give a thumbs up or down to{" "}
+          <Link href="/library?tab=seen" className="text-foreground underline underline-offset-4">
+            titles you&apos;ve seen
+          </Link>{" "}
+          and spins can lean toward what you like.
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-muted">
+            Based on {taste.ratings} rated {taste.ratings === 1 ? "title" : "titles"}.
+          </p>
+          {liked.length > 0 && <Traits heading="You lean toward" traits={liked} />}
+          {disliked.length > 0 && <Traits heading="You lean away from" traits={disliked} />}
+          {liked.length + disliked.length === 0 && (
+            <p className="text-sm text-muted">No clear leaning yet. Rate a few more.</p>
+          )}
+        </>
       )}
+      <div className="flex flex-wrap items-center gap-3">
+        {taste.ratings > 0 && (
+          <button
+            type="button"
+            onClick={startOver}
+            disabled={reset.kind === "busy"}
+            className="rounded-xl border border-border px-4 py-2 text-sm text-muted transition-colors hover:border-muted hover:text-foreground disabled:opacity-60"
+          >
+            Reset my taste
+          </button>
+        )}
+        <p aria-live="polite" className="text-sm">
+          {reset.kind === "busy" && (
+            <span className="inline-flex items-center gap-2 text-muted">
+              <Spinner width={14} height={14} /> Resetting…
+            </span>
+          )}
+          {reset.kind === "done" && (
+            <span className="inline-flex items-center gap-1.5 text-success">
+              <CheckIcon width={16} height={16} /> Your taste was reset
+            </span>
+          )}
+          {reset.kind === "error" && <span className="text-accent">{reset.message}</span>}
+        </p>
+      </div>
     </div>
   );
 }
