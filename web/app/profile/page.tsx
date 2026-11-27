@@ -4,6 +4,7 @@ import Link from "next/link";
 import { loginHref } from "@/lib/after-login";
 import { RatingSourcePicker } from "@/components/RatingSourcePicker";
 import { Select, type SelectOption } from "@/components/Select";
+import { TasteSummary } from "@/components/TasteSummary";
 import { ThemePicker } from "@/components/ThemeControls";
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { CheckIcon, ListIcon, PlayIcon, EyeCheckIcon, Spinner } from "@/components/icons";
@@ -137,6 +138,13 @@ export default function ProfilePage() {
           <StatTile href="/library?tab=watching" label="Watching" value={counts?.watching} icon={<PlayIcon />} />
           <StatTile href="/library?tab=seen" label="Seen" value={counts?.seen} icon={<EyeCheckIcon />} />
           <StatTile href="/library?tab=history" label="Picks" value={counts?.history} icon={<span aria-hidden>🎲</span>} />
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
+        <SectionTitle title="Your taste" hint="From your thumbs up and down. Used when “Match my taste” is on." />
+        <div className="mt-5">
+          <TasteSummary key={user.id} />
         </div>
       </section>
 

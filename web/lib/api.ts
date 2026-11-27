@@ -46,6 +46,19 @@ export type Title = {
 
 export type Why = { people?: string[]; genres?: string[]; decade?: number };
 
+/** A trait's pull on the taste profile: positive for liked, negative for disliked. */
+export type Weighted<K> = { key: K; weight: number; count: number };
+
+/** What the user's likes and dislikes add up to (GET /api/me/taste), strongest first. */
+export type TasteProfile = {
+  /** Titles rated so far. */
+  ratings: number;
+  genres: Weighted<string>[];
+  decades: Weighted<number>[];
+  /** key is the TMDB person ID, for /p/:id. */
+  people: (Weighted<number> & { name: string })[];
+};
+
 /** Someone credited on a title; id opens /p/:id. */
 export type PersonRef = { id: number; name: string };
 
