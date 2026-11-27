@@ -415,7 +415,8 @@ export function SpinPage() {
                 ↻ {rerollLabel}
               </button>
             </div>
-            {user && result.why && <WhyThisPick why={result.why} />}
+            {/* Gone once their taste is reset: those likes no longer count. */}
+            {user && ratings !== 0 && result.why && <WhyThisPick why={result.why} />}
             <TitleCard
               key={result.id}
               title={result}

@@ -53,17 +53,23 @@ export function TitleCard({
 
   const router = useRouter();
   const pathname = usePathname();
+  // The latest status, for the lookup below to read without re-running on changes.
+  const statusNow = useRef(initialStatus);
+  useEffect(() => {
+    statusNow.current = status;
+  }, [status]);
   // Who the status was last looked up for; signing in or out looks it up again.
   const statusFor = useRef<string | null | undefined>(ready ? (user?.id ?? null) : undefined);
 
-  // Find out whether it's already in the library: on title pages, and whenever
-  // someone signs in or out with the card on screen (e.g. back from logging in).
+  // Find out whether it's already in the library: on title pages, whenever someone
+  // signs in or out with the card on screen (e.g. back from logging in), and when a
+  // seen title's page is shown again, as its thumb may have changed elsewhere.
   useEffect(() => {
     if (!ready) return;
     const who = user?.id ?? null;
     const changed = statusFor.current !== who;
     statusFor.current = who;
-    if (!fetchStatus && !changed && initialStatus !== "seen") return;
+    if (!fetchStatus && !changed && statusNow.current !== "seen") return;
     let live = true;
     if (user) {
       // Added to the watchlist just now, as asked before logging in.
