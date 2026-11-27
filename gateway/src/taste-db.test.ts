@@ -112,6 +112,7 @@ const savedPeople = async (id: string) =>
 
 test("savePeople stores the cast and director from the picker, once", async () => {
   await seen("movie:1", { genres: ["Drama"] });
+  await setReaction(db, userId, "movie:1", "like");
   const real = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = (async () => {
@@ -135,6 +136,31 @@ test("savePeople leaves the row alone when the picker is down", async () => {
   const real = globalThis.fetch;
   globalThis.fetch = (async () => {
     throw new Error("picker down");
+  }) as typeof fetch;
+  try {
+    await savePeople(db, userId, "movie:1", "CA");
+  } finally {
+    globalThis.fetch = real;
+  }
+  assert.equal(await savedPeople("movie:1"), null);
+});
+
+test("clearing a rating forgets the title's people, switching it doesn't", async () => {
+  await seen("movie:1", { genres: ["Drama"] }, [{ id: 1, name: "A" }]);
+  await setReaction(db, userId, "movie:1", "like");
+  await setReaction(db, userId, "movie:1", "dislike");
+  assert.deepEqual(await savedPeople("movie:1"), [{ id: 1, name: "A" }]);
+  await setReaction(db, userId, "movie:1", null);
+  assert.equal(await savedPeople("movie:1"), null);
+});
+
+test("savePeople stores nothing if the rating is cleared mid-lookup", async () => {
+  await seen("movie:1", { genres: ["Drama"] });
+  await setReaction(db, userId, "movie:1", "like");
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    await setReaction(db, userId, "movie:1", null);
+    return Response.json({ details: { cast: [{ id: 1, name: "A" }] } });
   }) as typeof fetch;
   try {
     await savePeople(db, userId, "movie:1", "CA");
