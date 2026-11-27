@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy policy"
-      updated="October 17, 2026"
+      updated="November 27, 2026"
       intro={
         <p>
           Cynatra helps you pick something to watch. We keep as little about you as we can, we don&apos;t show ads,
@@ -40,8 +40,27 @@ export default function PrivacyPage() {
               </li>
               <li>Your country (for streaming availability) and the streaming services you tell us you have.</li>
               <li>Your Watchlist, Watching, Seen and spin History.</li>
+              <li>
+                Any thumbs up or down you give titles you&apos;ve seen. For each rated title we also save who directed
+                or created it and its main cast.
+              </li>
               <li>If you contact support: your message and the email address to reply to.</li>
             </ul>
+          ),
+        },
+        {
+          heading: "Your taste",
+          body: (
+            <>
+              <p>
+                From your ratings we work out which genres, decades and people you lean toward or away from. You can see
+                this under “Your taste” on your <Link href="/profile">Profile</Link>.
+              </p>
+              <p>
+                While “Match my taste” is on (it is unless you switch it off on the Spin page), your spins use it to
+                favour some titles over others and to say why one was picked. It isn&apos;t used for advertising.
+              </p>
+            </>
           ),
         },
         {
@@ -49,8 +68,8 @@ export default function PrivacyPage() {
           body: (
             <p>
               Only to run Cynatra: signing you in, sending sign-up codes, showing your library, avoiding titles
-              you&apos;ve seen, showing what&apos;s streaming in your country, and answering your support messages.
-              There are no analytics or tracking scripts, and no advertising cookies. Signing in stores a login token in
+              you&apos;ve seen, matching spins to your taste, showing what&apos;s streaming in your country, and
+              answering your support messages. There are no analytics or tracking scripts, and no advertising cookies. Signing in stores a login token in
               your browser so you stay signed in.
             </p>
           ),
@@ -73,8 +92,9 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>TMDB</strong> (and JustWatch through TMDB) provides titles, posters and where-to-watch data, and{" "}
-                <strong>IMDb</strong> provides ratings. We look titles up on your behalf; we don&apos;t send them
-                anything about you.
+                <strong>IMDb</strong> provides ratings. We look titles up on your behalf without telling them who you
+                are. To match your taste, a lookup may ask TMDB for movies featuring people from titles you&apos;ve
+                liked.
               </li>
               <li>
                 Trailers play from <strong>YouTube</strong> (privacy-enhanced mode) only when you press Trailer.
@@ -86,7 +106,9 @@ export default function PrivacyPage() {
           heading: "Keeping and deleting your data",
           body: (
             <p>
-              We keep your account until you ask us to delete it. To delete your account and everything linked to it,{" "}
+              We keep your account until you ask us to delete it. You can remove a rating by pressing the same thumb
+              again, or clear them all with “Reset my taste” on your <Link href="/profile">Profile</Link>; the cast and
+              director saved for those titles go too. To delete your account and everything linked to it,{" "}
               <Link href="/help#contact">send us a message</Link> from the email on your account and we&apos;ll remove it
               within 30 days. You can also ask for a copy of what we hold about you. Data in your browser can be cleared
               at any time from your browser&apos;s settings.
