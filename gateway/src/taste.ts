@@ -107,6 +107,19 @@ export async function tasteForPick(db: Db, userId: string): Promise<TasteProfile
 }
 
 /**
+ * Starts the taste profile over: clears every like and dislike, and the people
+ * saved for them. The titles stay on the Seen list. Returns how many ratings
+ * were cleared.
+ */
+export async function resetTaste(db: Db, userId: string): Promise<number> {
+  const { rowCount } = await db.query(
+    "UPDATE seen SET reaction = NULL, reacted_at = NULL, people = NULL WHERE user_id = $1 AND reaction IS NOT NULL",
+    [userId],
+  );
+  return rowCount ?? 0;
+}
+
+/**
  * Rated titles whose cast hasn't been saved yet (rated before people were
  * tracked, or while the picker was down), newest first.
  */

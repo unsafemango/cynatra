@@ -4,7 +4,7 @@ import { after, afterEach, before, beforeEach, test } from "node:test";
 import pg from "pg";
 import { migrate, pool } from "./db/index.js";
 import { leadPeople, savePeople, setReaction } from "./reactions.js";
-import { loadTaste, ratedWithoutPeople, tasteForPick } from "./taste.js";
+import { loadTaste, ratedWithoutPeople, resetTaste, tasteForPick } from "./taste.js";
 
 let db: pg.PoolClient;
 let userId: string;
@@ -87,6 +87,34 @@ test("other users' ratings don't leak in", async () => {
   await db.query("INSERT INTO seen (user_id, title_id, title) VALUES ($1, 'movie:9', '{\"genres\":[\"Western\"]}')", [rows[0].id]);
   await setReaction(db, rows[0].id, "movie:9", "like");
   assert.equal((await loadTaste(db, userId)).ratings, 0);
+});
+
+test("resetting the taste clears every rating but keeps the titles seen", async () => {
+  await seen("movie:1", { genres: ["Drama"], year: 2000 }, [{ id: 1, name: "A" }]);
+  await seen("movie:2", { genres: ["Horror"], year: 1980 });
+  await seen("movie:3", { genres: ["Western"] });
+  await setReaction(db, userId, "movie:1", "like");
+  await setReaction(db, userId, "movie:2", "dislike");
+
+  assert.equal(await resetTaste(db, userId), 2);
+  assert.deepEqual(await loadTaste(db, userId), { ratings: 0, genres: [], decades: [], people: [] });
+  assert.equal(await tasteForPick(db, userId), undefined);
+  const { rows } = await db.query(
+    "SELECT count(*)::int AS n, count(reacted_at)::int AS reacted, count(people)::int AS people FROM seen WHERE user_id = $1",
+    [userId],
+  );
+  assert.deepEqual(rows[0], { n: 3, reacted: 0, people: 0 });
+  assert.equal(await resetTaste(db, userId), 0, "nothing left to clear");
+});
+
+test("resetting leaves other users' ratings alone", async () => {
+  const { rows } = await db.query(
+    "INSERT INTO users (email, password_hash) VALUES ('taste-other@example.test', 'hash') RETURNING id",
+  );
+  await db.query("INSERT INTO seen (user_id, title_id) VALUES ($1, 'movie:9')", [rows[0].id]);
+  await setReaction(db, rows[0].id, "movie:9", "like");
+  await resetTaste(db, userId);
+  assert.equal((await loadTaste(db, rows[0].id)).ratings, 1);
 });
 
 test("leadPeople keeps directors and the top-billed cast without repeats", () => {

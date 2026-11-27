@@ -5,7 +5,7 @@ import { DEFAULT_REGION } from "../config.js";
 import { pool } from "../db/index.js";
 import { callPicker, refreshIMDb } from "../picker.js";
 import { getReaction, REACTIONS, savePeople, setReaction } from "../reactions.js";
-import { loadTaste, ratedWithoutPeople } from "../taste.js";
+import { loadTaste, ratedWithoutPeople, resetTaste } from "../taste.js";
 import { libraryStatus } from "./pick.js";
 
 // Watchlist, pick history and "seen" marks for the logged-in user.
@@ -477,6 +477,11 @@ libraryRouter.get("/taste", async (req, res) => {
   for (const id of await ratedWithoutPeople(pool!, userId)) {
     void savePeople(pool!, userId, id, rows[0]?.region ?? DEFAULT_REGION);
   }
+});
+
+// Starts the taste profile over. Seen marks stay.
+libraryRouter.delete("/taste", async (req, res) => {
+  res.json({ cleared: await resetTaste(pool!, req.user!.id) });
 });
 
 // "Seen it" marks made while logged out (kept in the browser), copied to the
